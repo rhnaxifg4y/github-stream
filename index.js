@@ -7,18 +7,31 @@ import chalkRainbow from 'chalk-rainbow';
 import debug from "debug";
 import path from "path";
 import fs from "fs";
+import axios from 'axios';
 
 const log = debug('github:events');
+const logGeocoder = debug('locationiq');
 
 const logHandler =  (e, d) => {
     process.nextTick();
 }
 
 const githubKeys = [
-    
+
 ]
 
 var githubKey = githubKeys[Math.floor(Math.random() * githubKeys.length)];
+
+const locationiqKeys = [
+
+]
+
+var locationiqKey = locationiqKeys[Math.floor(Math.random() * locationiqKeys.length)];
+
+const openaiKeys = [
+]
+
+var openaiKey = openaiKeys[Math.floor(Math.random() * openaiKeys.length)];
 
 Octokit.plugin(throttling);
 
@@ -65,25 +78,27 @@ async function fetchEvents() {
                         }
                     });
 
-                    let output = '';
+                    let output = '', generatedComment = '';
                     let res, lat, long
                     try {
                         if (userProfile.data && userProfile.data.location) {
-                            const geocoder = NodeGeocoder({ provider: 'locationiq', apiKey: 'pk.174e20d415e9a6d60a9ec294df228c85' });
+                            const geocoder = NodeGeocoder({ provider: 'locationiq', apiKey: locationiqKey });
                             res = await geocoder.geocode(userProfile.data.location);
-                            log('HALOOOO', userProfile.data.location, res[0])
                             if (res && res.length) {
                                 const { latitude, longitude } = res[0];
                                 lat = latitude
                                 long = longitude
                                 output += `${chalkRainbow(`(${latitude}, ${longitude})`)} `;
+                            } else {
+                                logGeocoder('HALOOOO', userProfile.data.location, res)
+                                throw new Error('OMG KESKISPASSE LA LOCATIONIQ')
                             }
                         } else {
                             output += `:'( `
                         }
                     } catch (e) {
                         output += 'x| '
-                        console.log(res, e)
+                        // console.log(res, e)
                         // process.exit();
                     }
 
@@ -143,6 +158,60 @@ async function fetchEvents() {
                             // Assuming the first commit in the payload
                             if (event.payload.commits.length > 0) {
                                 output += `${chalk.blue('Commit URL:')} ${chalk.underline.blue(event.payload.commits[0].url)} ${event.payload.commits[0].message.split('\n').join(' \ ')}`;
+                                if (lat && long) {
+                                    // SEND MISSILE FROM CASA, AYYYYY
+                                    // https://docs.github.com/fr/rest/commits/comments?apiVersion=2022-11-28#create-a-commit-comment
+                                    
+                                    try {
+
+                                        const commitUrl = event.payload.commits[0].url;
+
+                                        const response = await axios.get(commitUrl, {
+                                            headers: { "Authorization": "Bearer " + githubKey }
+                                        })
+                                        
+                                        const patch = response.data.files.reduce((acc, c) => acc += c.patch, ''); // On suppose beaucoup de choses
+
+                                        // Génère un commentaire avec l'API d'OpenAI
+                                        const openaiApiKey = openaiKey;
+                                        const openaiEndpoint = 'https://api.openai.com/v1/completions';
+                                        const prompt = `Génère un commentaire pour les changements de commit suivants :\n\n${patch.substring(0, 3500)}\n\nAddresse toi a l'autheur du commit et fini tes phrases wesh. Me donne pas la reponse entre guillemets, arrete tes @actor, fais ca bien serieux...`;
+
+                                        const openaiResponse = await axios.post(openaiEndpoint, {
+                                            model: "gpt-3.5-turbo-instruct",
+                                            prompt: prompt,
+                                            max_tokens: 100,
+                                            temperature: 0,
+                                        }, {
+                                            headers: {
+                                                "Content-Type": "application/json",
+                                                'Authorization': `Bearer ${openaiApiKey}`
+                                            }
+                                        })
+
+                                        generatedComment = openaiResponse.data.choices[0].text.trim();
+                                    } catch (e) {
+                                        // eeeeeeee
+                                    }
+
+                                    // Publie le commentaire généré sur le commit
+                                    
+                                    const commentEndpoint = `https://api.github.com/repos/${event.repo.name}/commits/${event.payload.commits[0].sha}/comments`;
+                                    
+                                    await axios.post(commentEndpoint, {
+                                        body: generatedComment,
+                                    }, {
+                                        headers: {
+                                            'Authorization': `token ${githubKey}`
+                                        }
+                                    })
+                                    .then(() => {
+                                        console.log('Commentaire posté avec succès!');
+                                    })
+                                    .catch(error => {
+                                        // console.error('Erreur lors de la publication du commentaire :', error);
+                                    });
+                                }
                             }
                             break;
                         case 'ReleaseEvent':
@@ -159,19 +228,37 @@ async function fetchEvents() {
                     }
 
                     console.log(output);
+                    if (generatedComment)
+                        console.log('💡 ' + generatedComment)
 
                     if (lat && long) {
-                        const dataEntry = {
-                            uml: userProfile.data.location,
-                            gm: { lat, lon: long }, // geo_user_merged
-                            uol: userProfile.data.location,
-                            gop: { lat, lon: long }, // geo_user_opened
-                            l: "WHO CARES", // repo dominant language?
-                            a: event.actor.login,
-                            nwo: event.repo.name,
-                            pr: 0, // pr number for link reconstruction?
-                            ma: event.created_at, // double check
-                            oa: new Date().toISOString() // double check
+                        let dataEntry, strikeEntry
+                        if (generatedComment) {
+                            strikeEntry = {
+                                uml: userProfile.data.location,
+                                gm: { lat, lon: long }, // geo_user_merged
+                                uol: userProfile.data.location,
+                                gop: { lat: 33.58535236663171, lon: -7.631805876712778 }, // geo_user_opened
+                                l: "WHO CARES", // repo dominant language?
+                                a: event.actor.login,
+                                nwo: event.repo.name,
+                                pr: 0, // pr number for link reconstruction?
+                                ma: event.created_at, // double check
+                                oa: new Date().toISOString() // double check
+                            }
+                        } else {
+                            dataEntry = {
+                                uml: userProfile.data.location,
+                                gm: { lat, lon: long }, // geo_user_merged
+                                uol: userProfile.data.location,
+                                gop: { lat, lon: long }, // geo_user_opened
+                                l: "WHO CARES", // repo dominant language?
+                                a: event.actor.login,
+                                nwo: event.repo.name,
+                                pr: 0, // pr number for link reconstruction?
+                                ma: event.created_at, // double check
+                                oa: new Date().toISOString() // double check
+                            }
                         }
 
                         const dataFilePath = path.join('./globe/bin/webgl-globe/data/data.json');
@@ -185,7 +272,10 @@ async function fetchEvents() {
                         }
                         
                         // Append new entry to the existing array
-                        existingData.push(dataEntry);
+                        if (dataEntry)
+                            existingData.push(dataEntry);
+                        if (strikeEntry)
+                            existingData.push(strikeEntry);
                         
                         // Write updated data back to data.json
                         try {
