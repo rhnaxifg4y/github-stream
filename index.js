@@ -88,6 +88,7 @@ async function fetchEvents() {
                         const userProfile = await octokit.request('GET /users/{username}', {
                             username: event.actor.login,
                             headers: {
+                                'Authorization': `Bearer ${githubKey}`,
                                 'X-GitHub-Api-Version': '2022-11-28'
                             }
                         });
