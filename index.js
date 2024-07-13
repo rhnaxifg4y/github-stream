@@ -384,10 +384,11 @@ async function fetchEvents() {
 
 fetchEvents();
 
-process.on('SIGINT', function() {
-    console.log(`Caught interrupt signal. Exiting in ${DELETE_COMMENTS_DELAY_WITH_LATENCY / 1000}s...`);
+process.on('SIGINT', function () {
+    const exitDelay = FEATURE_FLAG_POST_COMMENTS ? DELETE_COMMENTS_DELAY_WITH_LATENCY : 0;
+    console.log(`Caught interrupt signal. Exiting in ${exitDelay / 1000}s...`);
     stopProcessingEvents = true;
     setTimeout(() => {
         process.exit();
-    }, DELETE_COMMENTS_DELAY_WITH_LATENCY)
+    }, exitDelay)
 });
