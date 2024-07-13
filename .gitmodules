@@ -1,0 +1,3 @@
+[submodule "globe"]
+	path = globe
+	url = git@github.com:mlix8hoblc/github-globe.git
