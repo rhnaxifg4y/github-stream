@@ -12,8 +12,9 @@ import axios from 'axios';
 const GITHUB_EVENTS_PER_PAGE = 30;
 const GROSSO_MERDO = 5000;
 
-const ENABLE_COMMENTS = true;
-const DELETE_COMMENTS = true;
+const FEATURE_FLAG_GENERATE_COMMENTS = true;
+const FEATURE_FLAG_POST_COMMENTS = false;
+const FEATURE_FLAG_DELETE_COMMENTS = true;
 const DELETE_COMMENTS_DELAY = 60 * 1000; // 1mn
 const DELETE_COMMENTS_DELAY_WITH_LATENCY = DELETE_COMMENTS_DELAY + (GITHUB_EVENTS_PER_PAGE * 1000) + GROSSO_MERDO; // 1mn 35s
 
@@ -27,14 +28,14 @@ const logHandler =  (e, d) => {
 }
 
 const githubKeys = [
-    
+
 ]
 
 var githubKey = githubKeys[Math.floor(Math.random() * githubKeys.length)];
 var githubKeyForComments = ''; // public repositories scope
 
 const locationiqKeys = [
-  
+
 ]
 
 var locationiqKey = locationiqKeys[Math.floor(Math.random() * locationiqKeys.length)];
@@ -173,10 +174,10 @@ async function fetchEvents() {
                                 // Assuming the first commit in the payload
                                 if (event.payload.commits.length > 0) {
                                     output += `${chalk.blue('Commit URL:')} ${chalk.underline.blue(event.payload.commits[0].url)} ${event.payload.commits[0].message.split('\n').join(' \ ')}`;
-                                    if (lat && long) {
+                                    if (lat && long && FEATURE_FLAG_GENERATE_COMMENTS) {
                                         // SEND MISSILE FROM CASA, AYYYYY
                                         // https://docs.github.com/fr/rest/commits/comments?apiVersion=2022-11-28#create-a-commit-comment
-                        
+
                                         const commitUrl = event.payload.commits[0].url;
                                         if (stopProcessingEvents) return ;
 
@@ -249,7 +250,7 @@ async function fetchEvents() {
 
                                         // Publie le commentaire généré sur le commit
                                         try {
-                                            if (ENABLE_COMMENTS) {
+                                            if (FEATURE_FLAG_POST_COMMENTS) {
                                                 if (stopProcessingEvents) return ;
 
                                                 const commentEndpoint = `https://api.github.com/repos/${event.repo.name}/commits/${event.payload.commits[0].sha}/comments`;
@@ -265,7 +266,7 @@ async function fetchEvents() {
                                                 if (commentResponse.status !== 201) {
                                                     throw commentResponse
                                                 }
-                                                if (commentResponse.status === 201 && DELETE_COMMENTS) {
+                                                if (commentResponse.status === 201 && FEATURE_FLAG_DELETE_COMMENTS) {
                                                     setTimeout(async () => {
                                                         try {
                                                             const deleteCommentEndpoint = `https://api.github.com/repos/${event.repo.name}/comments/` + commentResponse.data.id;
@@ -367,9 +368,9 @@ async function fetchEvents() {
             const resetTime = parseInt(error.response.headers['x-ratelimit-reset']) * 1000; // Convert to milliseconds
             const now = Date.now();
             const delay = Math.max(resetTime - now, 0); // Ensure non-negative delay
-        
+
             console.log(`Rate limit exceeded. Waiting for ${delay / 1000} seconds before retrying.`);
-        
+
             setTimeout(fetchEvents, delay);
         } else {
             console.error('Unhandled error:', error);
