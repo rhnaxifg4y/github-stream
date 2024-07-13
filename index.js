@@ -78,7 +78,7 @@ async function fetchEvents() {
         if (response.status === 200) {
             etag = response.headers['etag'];
             lastModified = response.headers['last-modified'];
-
+            pollingInterval = response.headers['x-poll-interval'] * 1000;
             const events = response.data;
             for (let i = 0; i < events.length; i++) {
                 if (!stopProcessingEvents) {
