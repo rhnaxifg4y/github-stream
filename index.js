@@ -1,10 +1,8 @@
 import 'dotenv/config';
-import util from "util";
 import { Octokit } from "octokit";
 import { throttling } from "@octokit/plugin-throttling";
 import NodeGeocoder from 'node-geocoder';
 import chalk from "chalk";
-import chalkRainbow from 'chalk-rainbow';
 import debug from "debug";
 import path from "path";
 import fs from "fs";
@@ -23,9 +21,9 @@ const githubKey = getRandomKey(process.env.GITHUB_KEYS.split(','));
 const locationiqKey = getRandomKey(process.env.LOCATIONIQ_KEYS.split(','));
 const openaiKey = getRandomKey(process.env.OPENAI_KEYS.split(','));
 
-const logGitHub = debug('github');
-const logLocationIQ = debug('locationiq');
-const logOpenAI = debug('openai');
+const githubLogger = debug('github');
+const locationiqLogger = debug('locationiq');
+const openaiLogger = debug('openai');
 
 const octokitLogHandler = (e, d) => {
     process.nextTick();
@@ -51,50 +49,60 @@ let stopProcessingEvents = false;
 
 async function fetchEvents() {
     try {
-        const headers = {
-            'X-GitHub-Api-Version': '2022-11-28'
-        };
-        if (etag) {
-            headers['If-None-Match'] = etag;
-        }
-        if (lastModified) {
-            headers['If-Modified-Since'] = lastModified;
-        }
-
-        const response = await octokit.request('GET /events', { headers });
-        if (response.status === 200) {
-            etag = response.headers['etag'];
-            lastModified = response.headers['last-modified'];
-            pollingInterval = response.headers['x-poll-interval'] * 1000;
-            const events = response.data;
+        // https://docs.github.com/en/rest/activity/events?apiVersion=2022-11-28#list-public-events
+        const { status, headers, data: events } = await octokit.request('GET /events', {
+            'X-GitHub-Api-Version': '2022-11-28',
+            'If-None-Match': etag,
+            'If-Modified-Since': lastModified
+        });
+        if (status === 200) {
+            etag = headers['etag'];
+            lastModified = headers['last-modified'];
+            pollingInterval = headers['x-poll-interval'] * 1000;
             for (let i = 0; i < events.length; i++) {
                 if (!stopProcessingEvents) {
                     setTimeout(async () => {
                         const event = events[i];
-                        if (stopProcessingEvents) return ;
-                        const userProfile = await octokit.request('GET /users/{username}', {
+                        if (stopProcessingEvents) return;
+                        // https://docs.github.com/en/rest/users/users?apiVersion=2022-11-28#get-a-user
+                        const { data: user } = await octokit.request('GET /users/{username}', {
                             username: event.actor.login,
                             headers: {
                                 'Authorization': `Bearer ${githubKey}`,
                                 'X-GitHub-Api-Version': '2022-11-28'
                             }
                         });
-                        if (stopProcessingEvents) return ;
+                        if (stopProcessingEvents) return;
                         let output = '', generatedComment = '';
                         let res, lat, long, commentResponse
+
+                        function rainbow(str) {
+                            if (typeof str !== 'string') {
+                                throw new TypeError('chalk-rainbow expected a string')
+                            }
+
+                            const letters = str.split('')
+                            const colors = ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta']
+                            const colorsCount = colors.length
+
+                            return letters.map((l, i) => {
+                                const color = colors[i % colorsCount]
+                                return chalk[color](l)
+                            }).join('')
+                        }
+
                         try {
-                            if (userProfile.data && userProfile.data.location) {
+                            if (user && user.location) {
                                 const geocoder = NodeGeocoder({ provider: 'locationiq', apiKey: locationiqKey });
-                                if (stopProcessingEvents) return ;
-                                res = await geocoder.geocode(userProfile.data.location);
-                                if (stopProcessingEvents) return ;
+                                if (stopProcessingEvents) return;
+                                res = await geocoder.geocode(user.location);
+                                if (stopProcessingEvents) return;
                                 if (res && res.length) {
                                     const { latitude, longitude } = res[0];
                                     lat = latitude
                                     long = longitude
-                                    output += `${chalkRainbow(`(${latitude}, ${longitude})`)} `;
+                                    output += `${rainbow(`(${latitude}, ${longitude})`)} `;
                                 } else {
-                                    logLocationIQ('HALOOOO', userProfile.data.location, res)
                                     throw new Error('OMG KESKISPASSE LA LOCATIONIQ')
                                 }
                             } else {
@@ -105,10 +113,10 @@ async function fetchEvents() {
                         }
 
                         output += `${chalk.blue('ID:')} ${chalk.green(event.id)} ` +
-                                    `${chalk.blue('Created at:')} ${chalk.green(event.created_at)} ` +
-                                    `${chalk.blue('Type:')} ${chalk.green(event.type)} ` +
-                                    `${chalk.blue('Actor:')} ${chalk.green(event.actor.login)} ` +
-                                    `${chalk.blue('Repo:')} ${chalk.green(event.repo.name)} `;
+                            `${chalk.blue('Created at:')} ${chalk.green(event.created_at)} ` +
+                            `${chalk.blue('Type:')} ${chalk.green(event.type)} ` +
+                            `${chalk.blue('Actor:')} ${chalk.green(event.actor.login)} ` +
+                            `${chalk.blue('Repo:')} ${chalk.green(event.repo.name)} `;
 
                         switch (event.type) {
                             case 'CommitCommentEvent':
@@ -157,7 +165,7 @@ async function fetchEvents() {
                                 if (event.payload.commits.length > 0) {
                                     output += `${chalk.blue('Commit URL:')} ${chalk.underline.blue(event.payload.commits[0].url)} ${event.payload.commits[0].message.split('\n').join(' \ ')}`;
                                     if (lat && long && OPENAI_FEATURE_FLAG_GENERATE_COMMENTS) {
-                                        generatedComment = await handlePushEvent(event, userProfile.data.location)
+                                        generatedComment = await handlePushEvent(event, user.location)
                                     }
                                 }
                                 break;
@@ -182,9 +190,9 @@ async function fetchEvents() {
                             let dataEntry, strikeEntry
                             if (generatedComment) {
                                 strikeEntry = {
-                                    uml: userProfile.data.location,
+                                    uml: user.location,
                                     gm: { lat, lon: long },
-                                    uol: userProfile.data.location,
+                                    uol: user.location,
                                     gop: { lat: 33.58535236663171, lon: -7.631805876712778 },
                                     l: "WHO CARES", // repo dominant language?
                                     a: event.actor.login,
@@ -197,9 +205,9 @@ async function fetchEvents() {
                                 }
                             } else {
                                 dataEntry = {
-                                    uml: userProfile.data.location,
+                                    uml: user.location,
                                     gm: { lat, lon: long },
-                                    uol: userProfile.data.location,
+                                    uol: user.location,
                                     gop: { lat, lon: long },
                                     l: "WHO CARES",
                                     a: event.actor.login,
@@ -220,8 +228,6 @@ async function fetchEvents() {
                                 existingData.push(strikeEntry);
                             fs.writeFileSync(dataFilePath, JSON.stringify(existingData, null, 2));
                         }
-
-                        logGitHub(util.inspect(event, { depth: null, colors: true }));
                     }, i * 1000); // Display each event with a 1-second delay
                 }
             }
@@ -247,20 +253,14 @@ async function fetchEvents() {
 
 async function handlePushEvent(event, location) {
     let generatedComment;
-    const commitUrl = event.payload.commits[0].url;
-    if (stopProcessingEvents) return ;
+    const { url } = event.payload.commits[0];
+    if (stopProcessingEvents) return;
 
-    const response = await axios.get(commitUrl, {
+    const { status, data: { files } } = await axios.get(url, {
         headers: { "Authorization": "Bearer " + githubKey }
     })
-    if (response.status !== 200) return ;
-    if (stopProcessingEvents) return ;
-
-    const files = response.data.files
-
-    // Génère un commentaire avec l'API d'OpenAI
-    const openaiApiKey = openaiKey;
-    const openaiEndpoint = 'https://api.openai.com/v1/chat/completions';
+    if (status !== 200) return;
+    if (stopProcessingEvents) return;
 
     const PROMPT_1 = `
     Write a funny comment from a senior dev on a commit in a post-apocalyptic world. The comment should cause the reader to question how they still work here, mildly insulting, or just rude. Write in all lowercase and keep it short (because this commit isn't worth your time lol).
@@ -294,36 +294,34 @@ async function handlePushEvent(event, location) {
 
     Answer using a sentance in the local language for the following location: "${location}"
     `;
-    if (stopProcessingEvents) return ;
-
-    const openaiResponse = await axios.post(openaiEndpoint, {
+    if (stopProcessingEvents) return;
+    // https://platform.openai.com/docs/guides/text-generation/chat-completions-api
+    const { data: { choices } } = await axios.post('https://api.openai.com/v1/chat/completions', {
         model: "gpt-4o",
         messages: [
             {
                 role: "system",
                 content: PROMPT_WRAPPER(
-                PROMPTS[Math.floor(Math.random() * PROMPTS.length)],
-                files
+                    PROMPTS[Math.floor(Math.random() * PROMPTS.length)],
+                    files
                 ),
             }
         ],
     }, {
         headers: {
             "Content-Type": "application/json",
-            'Authorization': `Bearer ${openaiApiKey}`
+            'Authorization': `Bearer ${openaiKey}`
         }
     })
-    if (stopProcessingEvents) return ;
+    if (stopProcessingEvents) return;
 
-    generatedComment = openaiResponse.data.choices[0].message.content;
+    generatedComment = choices[0].message.content;
 
-    // Publie le commentaire généré sur le commit
     try {
         if (GITHUB_FEATURE_FLAG_POST_COMMENTS) {
-            if (stopProcessingEvents) return ;
-
-            const commentEndpoint = `https://api.github.com/repos/${event.repo.name}/commits/${event.payload.commits[0].sha}/comments`;
-            commentResponse = await axios.post(commentEndpoint, {
+            if (stopProcessingEvents) return;
+            // https://docs.github.com/fr/rest/commits/comments?apiVersion=2022-11-28#create-a-commit-comment
+            const { status } = await axios.post(`https://api.github.com/repos/${event.repo.name}/commits/${event.payload.commits[0].sha}/comments`, {
                 body: generatedComment,
             }, {
                 headers: {
@@ -332,14 +330,12 @@ async function handlePushEvent(event, location) {
                     "X-GitHub-Api-Version": "2022-11-28"
                 }
             })
-            if (commentResponse.status !== 201) {
-                throw commentResponse
-            }
-            if (commentResponse.status === 201 && GITHUB_FEATURE_FLAG_DELETE_COMMENTS) {
+            // if (status !== 201) throw ?
+            if (status === 201 && GITHUB_FEATURE_FLAG_DELETE_COMMENTS) {
                 setTimeout(async () => {
                     try {
-                        const deleteCommentEndpoint = `https://api.github.com/repos/${event.repo.name}/comments/` + commentResponse.data.id;
-                        await axios.delete(deleteCommentEndpoint, {
+                        // https://docs.github.com/fr/rest/commits/comments?apiVersion=2022-11-28#delete-a-commit-comment
+                        await axios.delete(`https://api.github.com/repos/${event.repo.name}/comments/${commentResponse.data.id}`, {
                             headers: {
                                 "Accept": "application/vnd.github+json",
                                 'Authorization': `Bearer ${githubKey}`,
