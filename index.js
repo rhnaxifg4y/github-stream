@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import util from "util";
 import { Octokit } from "octokit";
 import { throttling } from "@octokit/plugin-throttling";
@@ -27,22 +28,15 @@ const logHandler =  (e, d) => {
     process.nextTick();
 }
 
-const githubKeys = [
-
-]
+const githubKeys = process.env.GITHUB_KEYS.split(',')
 
 var githubKey = githubKeys[Math.floor(Math.random() * githubKeys.length)];
-var githubKeyForComments = ''; // public repositories scope
 
-const locationiqKeys = [
-
-]
+const locationiqKeys = process.env.LOCATIONIQ_KEYS.split(',')
 
 var locationiqKey = locationiqKeys[Math.floor(Math.random() * locationiqKeys.length)];
 
-const openaiKeys = [
-
-]
+const openaiKeys = process.env.OPENAI_KEYS.split(',')
 
 var openaiKey = openaiKeys[Math.floor(Math.random() * openaiKeys.length)];
 
@@ -260,7 +254,7 @@ async function fetchEvents() {
                                                 }, {
                                                     headers: {
                                                         "Accept": "application/vnd.github+json",
-                                                        'Authorization': `Bearer ${githubKeyForComments}`,
+                                                        'Authorization': `Bearer ${githubKey}`,
                                                         "X-GitHub-Api-Version": "2022-11-28"
                                                     }
                                                 })
@@ -274,7 +268,7 @@ async function fetchEvents() {
                                                             await axios.delete(deleteCommentEndpoint, {
                                                                 headers: {
                                                                     "Accept": "application/vnd.github+json",
-                                                                    'Authorization': `Bearer ${githubKeyForComments}`,
+                                                                    'Authorization': `Bearer ${githubKey}`,
                                                                     "X-GitHub-Api-Version": "2022-11-28"
                                                                 }
                                                             })
