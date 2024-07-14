@@ -10,7 +10,7 @@ import path from "path";
 import fs from "fs";
 import axios from 'axios';
 
-const GITHUB_EVENTS_PER_PAGE = 30;
+const GITHUB_EVENTS_PER_PAGE = 100;
 const GROSSO_MERDO = 5000;
 const OPENAI_FEATURE_FLAG_GENERATE_COMMENTS = true;
 const GITHUB_FEATURE_FLAG_POST_COMMENTS = false;
