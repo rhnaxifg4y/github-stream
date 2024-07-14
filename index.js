@@ -17,7 +17,7 @@ const GITHUB_DELETE_COMMENTS_DELAY = 60 * 1000;
 const GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY = GITHUB_DELETE_COMMENTS_DELAY + (GITHUB_EVENTS_PER_PAGE * 1000) + GROSSO_MERDO;
 
 const getRandomKey = (keys) => keys[Math.floor(Math.random() * keys.length)]
-const githubKey = getRandomKey(process.env.GITHUB_KEYS.split(','));
+const githubKey = getRandomKey(process.env._GITHUB_KEYS.split(','));
 const locationiqKey = getRandomKey(process.env.LOCATIONIQ_KEYS.split(','));
 const openaiKey = getRandomKey(process.env.OPENAI_KEYS.split(','));
 
