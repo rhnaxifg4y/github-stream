@@ -4,7 +4,7 @@ import fs from 'fs';
 
 var githubKeyForComments = ''; // public repositories scope
 
-const dataFilePath = path.join('./globe/bin/webgl-globe/data/data.json');
+const dataFilePath = path.join('./globe/data.json');
 
 // Read existing data from data.json
 let existingData = [];

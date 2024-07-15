@@ -219,7 +219,7 @@ async function fetchEvents() {
                                 }
                             }
 
-                            const dataFilePath = path.join('./globe/bin/webgl-globe/data/data.json');
+                            const dataFilePath = path.join('./globe/data.json');
                             let existingData = [];
                             existingData = JSON.parse(fs.readFileSync(dataFilePath, 'utf8'));
                             if (dataEntry)
