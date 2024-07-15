@@ -201,7 +201,7 @@ async function fetchEvents() {
                                     ma: event.created_at,
                                     oa: new Date().toISOString(), // "We delay the public events feed by five minutes, which means the most recent event returned by the public events API actually occurred at least five minutes ago."
                                     tg: generatedComment,
-                                    dce: commentResponse && commentResponse.data ? `https://api.github.com/repos/${event.repo.name}/comments/` + commentResponse.data.id : commentResponse
+                                    // dce: `https://api.github.com/repos/${event.repo.name}/comments/` + commentResponse.data.id
                                 }
                             } else {
                                 dataEntry = {
@@ -321,7 +321,7 @@ async function handlePushEvent(event, location) {
         if (GITHUB_FEATURE_FLAG_POST_COMMENTS) {
             if (stopProcessingEvents) return;
             // https://docs.github.com/fr/rest/commits/comments?apiVersion=2022-11-28#create-a-commit-comment
-            const { status } = await axios.post(`https://api.github.com/repos/${event.repo.name}/commits/${event.payload.commits[0].sha}/comments`, {
+            const { status, data: { id } } = await axios.post(`https://api.github.com/repos/${event.repo.name}/commits/${event.payload.commits[0].sha}/comments`, {
                 body: generatedComment,
             }, {
                 headers: {
@@ -335,7 +335,7 @@ async function handlePushEvent(event, location) {
                 setTimeout(async () => {
                     try {
                         // https://docs.github.com/fr/rest/commits/comments?apiVersion=2022-11-28#delete-a-commit-comment
-                        await axios.delete(`https://api.github.com/repos/${event.repo.name}/comments/${commentResponse.data.id}`, {
+                        await axios.delete(`https://api.github.com/repos/${event.repo.name}/comments/${id}`, {
                             headers: {
                                 "Accept": "application/vnd.github+json",
                                 'Authorization': `Bearer ${githubKey}`,
