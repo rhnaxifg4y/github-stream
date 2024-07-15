@@ -74,7 +74,7 @@ async function fetchEvents() {
                         });
                         if (stopProcessingEvents) return;
                         let output = '', generatedComment = '';
-                        let res, lat, long, commentResponse
+                        let res, lat, long, handlingResult
 
                         function rainbow(str) {
                             if (typeof str !== 'string') {
@@ -165,7 +165,8 @@ async function fetchEvents() {
                                 if (event.payload.commits.length > 0) {
                                     output += `${chalk.blue('Commit URL:')} ${chalk.underline.blue(event.payload.commits[0].url)} ${event.payload.commits[0].message.split('\n').join(' \ ')}`;
                                     if (lat && long && OPENAI_FEATURE_FLAG_GENERATE_COMMENTS) {
-                                        generatedComment = await handlePushEvent(event, user.location)
+                                        handlingResult = await handlePushEvent(event, user.location)
+                                        generatedComment = handlingResult.comment
                                     }
                                 }
                                 break;
@@ -201,7 +202,7 @@ async function fetchEvents() {
                                     ma: event.created_at,
                                     oa: new Date().toISOString(), // "We delay the public events feed by five minutes, which means the most recent event returned by the public events API actually occurred at least five minutes ago."
                                     tg: generatedComment,
-                                    // dce: `https://api.github.com/repos/${event.repo.name}/comments/` + commentResponse.data.id
+                                    dce: handlingResult.dce
                                 }
                             } else {
                                 dataEntry = {
@@ -316,12 +317,13 @@ async function handlePushEvent(event, location) {
     if (stopProcessingEvents) return;
 
     generatedComment = choices[0].message.content;
+    let commentId
 
     try {
         if (GITHUB_FEATURE_FLAG_POST_COMMENTS) {
             if (stopProcessingEvents) return;
             // https://docs.github.com/fr/rest/commits/comments?apiVersion=2022-11-28#create-a-commit-comment
-            const { status, data: { id } } = await axios.post(`https://api.github.com/repos/${event.repo.name}/commits/${event.payload.commits[0].sha}/comments`, {
+            const { status, data: { id: commentId } } = await axios.post(`https://api.github.com/repos/${event.repo.name}/commits/${event.payload.commits[0].sha}/comments`, {
                 body: generatedComment,
             }, {
                 headers: {
@@ -330,12 +332,13 @@ async function handlePushEvent(event, location) {
                     "X-GitHub-Api-Version": "2022-11-28"
                 }
             })
+            commentId = id
             // if (status !== 201) throw ?
             if (status === 201 && GITHUB_FEATURE_FLAG_DELETE_COMMENTS) {
                 setTimeout(async () => {
                     try {
                         // https://docs.github.com/fr/rest/commits/comments?apiVersion=2022-11-28#delete-a-commit-comment
-                        await axios.delete(`https://api.github.com/repos/${event.repo.name}/comments/${id}`, {
+                        await axios.delete(`https://api.github.com/repos/${event.repo.name}/comments/${commentId}`, {
                             headers: {
                                 "Accept": "application/vnd.github+json",
                                 'Authorization': `Bearer ${githubKey}`,
@@ -352,7 +355,10 @@ async function handlePushEvent(event, location) {
         console.log('Error posting/deleting comment:', e)
     }
 
-    return generatedComment;
+    return {
+        comment: generatedComment,
+        dce: commentId && `https://api.github.com/repos/${event.repo.name}/comments/${commentId}`,
+    }
 }
 
 fetchEvents();
