@@ -16,10 +16,10 @@ const GITHUB_FEATURE_FLAG_DELETE_COMMENTS = true;
 const GITHUB_DELETE_COMMENTS_DELAY = 60 * 1000;
 const GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY = GITHUB_DELETE_COMMENTS_DELAY + (GITHUB_EVENTS_PER_PAGE * 1000) + GROSSO_MERDO;
 
-const getRandomKey = (keys) => keys[Math.floor(Math.random() * keys.length)]
-const githubKey = getRandomKey(process.env._GITHUB_KEYS.split(','));
-const locationiqKey = getRandomKey(process.env.LOCATIONIQ_KEYS.split(','));
-let openaiKey = getRandomKey(process.env.OPENAI_KEYS.split(','));
+const getRandom = (keys) => keys[Math.floor(Math.random() * keys.length)]
+const githubKey = getRandom(process.env._GITHUB_KEYS.split(','));
+const locationiqKey = getRandom(process.env.LOCATIONIQ_KEYS.split(','));
+let openaiKey = getRandom(process.env.OPENAI_KEYS.split(','));
 
 const githubLogger = debug('github');
 const locationiqLogger = debug('locationiq');
@@ -247,12 +247,13 @@ async function fetchEvents() {
 function handleError(error) {
     if (error.status === 304) {
         console.log('No new events');
-    } else if (error.response.status === 404 || error.response.status === 401 || error.response.status === 429) { // openai key issue
-        console.log(JSON.stringify(error.response.data.error))
+    } else if (error.response && (error.response.status === 404 || error.response.status === 401 || error.response.status === 429)) { // openai key issue
+        console.log(JSON.stringify(error))
         if (error.response.data.error.message.indexOf('Incorrect API key provided:') !== -1 || error.response.data.error.message.indexOf('You exceeded your current quota') !== -1) {
             openaiKey = getRandomKey(process.env.OPENAI_KEYS.split(','));
         }
-    } else if (error.response.headers['x-ratelimit-remaining'] === '0') {
+    } else if (error.response && error.response.headers['x-ratelimit-remaining'] === '0') {
+        console.log(JSON.stringify(error))
         const resetTime = parseInt(error.response.headers['x-ratelimit-reset']) * 1000;
         const now = Date.now();
         const delay = Math.max(resetTime - now, 0); // Ensure non-negative delay
@@ -312,9 +313,15 @@ async function handlePushEvent(event, location) {
     Answer using a sentance in the local language for the following location: "${location}"
     `;
     if (stopProcessingEvents) return;
-    // https://platform.openai.com/docs/guides/text-generation/chat-completions-api
-    const { data: { choices } } = await axios.post('https://api.openai.com/v1/chat/completions', {
-        model: "gpt-4o",
+
+    const chatbots = [
+        // { endpoint: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o' }, // https://platform.openai.com/docs/guides/text-generation/chat-completions-api
+        { endpoint: 'http://127.0.0.1:11434/api/chat', model: 'llama3' }
+    ];
+    const chatbot = getRandom(chatbots);
+    
+    const { data } = await axios.post(chatbot.endpoint, {
+        model: chatbot.model,
         messages: [
             {
                 role: "system",
@@ -324,6 +331,7 @@ async function handlePushEvent(event, location) {
                 ),
             }
         ],
+        stream: false
     }, {
         headers: {
             "Content-Type": "application/json",
@@ -332,7 +340,7 @@ async function handlePushEvent(event, location) {
     })
     if (stopProcessingEvents) return;
 
-    generatedComment = choices[0].message.content;
+    generatedComment = data.choices ? data.choices[0].message.content : data.message.content;
     let commentId
 
     if (GITHUB_FEATURE_FLAG_POST_COMMENTS) {
