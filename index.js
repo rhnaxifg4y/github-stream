@@ -250,7 +250,7 @@ function handleError(error) {
         console.log('No new events');
     } else if (error.response && (error.response.status === 404 || error.response.status === 401 || error.response.status === 429)) { // openai key issue
         console.log(JSON.stringify(error.response.data))
-        if (error.response.data.error.message.indexOf('Incorrect API key provided:') !== -1 || error.response.data.error.message.indexOf('You exceeded your current quota') !== -1) {
+        if (error.response.data.error && error.response.data.error.message.indexOf('Incorrect API key provided:') !== -1 || error.response.data.error.message.indexOf('You exceeded your current quota') !== -1) {
             openaiKeys.splice(openaiKeys.indexOf(openaiKey), 1)
             openaiKey = getRandom(openaiKeys);
         }
