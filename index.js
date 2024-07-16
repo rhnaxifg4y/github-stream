@@ -372,7 +372,13 @@ function handleError(error) {
         const resetTime = parseInt(error.response.headers['x-ratelimit-reset']) * 1000;
         const now = Date.now();
         const retryDelay = Math.max(resetTime - now, 0); // Ensure non-negative delay
-        console.log(`Rate limit exceeded. Waiting for ${retryDelay / 1000} seconds before retrying.`);
+        let remainingTime = retryDelay;
+        const interval = setInterval(() => {
+            remainingTime -= 1000;
+            process.stdout.write(`Rate limit exceeded. Waiting for ${remainingTime / 1000} seconds before retrying.\r`);
+            if (remainingTime < 0)
+                clearInterval(interval);
+        }, 1000);
         stopProcessingEvents = true;
         setTimeout(fetchEvents, retryDelay);
     } else {
@@ -386,7 +392,13 @@ function handleError(error) {
 
 process.on('SIGINT', function () {
     const exitDelay = GITHUB_FEATURE_FLAG_POST_COMMENTS ? GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY : 0;
-    console.log(`Caught interrupt signal. Exiting in ${exitDelay / 1000}s...`);
+    let remainingTime = exitDelay;
+    const interval = setInterval(() => {
+        remainingTime -= 1000;
+        process.stdout.write(`Caught interrupt signal. Exiting in ${remainingTime / 1000}s...\r`);
+        if (remainingTime < 0)
+            clearInterval(interval);
+    }, 1000);
     stopProcessingEvents = true;
     setTimeout(() => {
         process.exit();
