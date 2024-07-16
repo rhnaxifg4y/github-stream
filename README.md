@@ -1,1 +1,31 @@
 ![Screenshot 2024-07-05 183051](https://github.com/mlix8hoblc/github-stream/assets/110055457/7c6022fc-eb1b-4a09-900b-2d85b1d7ddba)
+
+# Usage
+
+```
+$ git clone
+$ npm install
+$ cp .env.example .env
+$ curl -fsSL https://ollama.com/install.sh | sh
+$ ollama pull llama3
+$ ollama serve
+$ node index.js
+```
+
+Run the GitHub Actions workflow locally using [act-cli](https://github.com/nektos/act):
+
+```
+$ curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
+$ act -P ubuntu-latest=catthehacker/ubuntu:act-latest -b
+```
+
+Visualize data on the globe:
+
+```
+$ cd ./globe
+$ git checkout main && git pull
+$ npm install
+$ npm run dev
+```
+
+Visit http://localhost:8080.
