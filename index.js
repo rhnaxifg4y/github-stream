@@ -245,32 +245,6 @@ async function fetchEvents() {
     }
 }
 
-function handleError(error) {
-    if (error.status === 304) {
-        console.log('No new events');
-    } else if (error.response && (error.response.status === 404 || error.response.status === 401 || error.response.status === 429)) { // openai key issue
-        console.log(JSON.stringify(error.response.data))
-        if (error.response.data.error && error.response.data.error.message.indexOf('Incorrect API key provided:') !== -1 || error.response.data.error.message.indexOf('You exceeded your current quota') !== -1) {
-            openaiKeys.splice(openaiKeys.indexOf(openaiKey), 1)
-            openaiKey = getRandom(openaiKeys);
-        }
-    } else if (error.response && error.response.headers['x-ratelimit-remaining'] === '0') {
-        console.log(JSON.stringify(error))
-        const resetTime = parseInt(error.response.headers['x-ratelimit-reset']) * 1000;
-        const now = Date.now();
-        const delay = Math.max(resetTime - now, 0); // Ensure non-negative delay
-        console.log(`Rate limit exceeded. Waiting for ${delay / 1000} seconds before retrying.`);
-        stopProcessingEvents = true;
-        setTimeout(fetchEvents, delay);
-    } else {
-        const exitDelay = GITHUB_FEATURE_FLAG_POST_COMMENTS ? GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY : 0;
-        console.error('Unhandled error:', error);
-        setTimeout(() => {
-            process.exit();
-        }, exitDelay)
-    }
-}
-
 async function handlePushEvent(event, location) {
     let generatedComment;
     const { url } = event.payload.commits[0];
@@ -383,6 +357,32 @@ async function handlePushEvent(event, location) {
 }
 
 fetchEvents();
+
+function handleError(error) {
+    if (error.status === 304) {
+        console.log('No new events');
+    } else if (error.response && (error.response.status === 404 || error.response.status === 401 || error.response.status === 429)) { // openai key issue
+        console.log(JSON.stringify(error.response.data))
+        if (error.response.data.error && error.response.data.error.message.indexOf('Incorrect API key provided:') !== -1 || error.response.data.error.message.indexOf('You exceeded your current quota') !== -1) {
+            openaiKeys.splice(openaiKeys.indexOf(openaiKey), 1)
+            openaiKey = getRandom(openaiKeys);
+        }
+    } else if (error.response && error.response.headers['x-ratelimit-remaining'] === '0') {
+        console.log(JSON.stringify(error))
+        const resetTime = parseInt(error.response.headers['x-ratelimit-reset']) * 1000;
+        const now = Date.now();
+        const retryDelay = Math.max(resetTime - now, 0); // Ensure non-negative delay
+        console.log(`Rate limit exceeded. Waiting for ${retryDelay / 1000} seconds before retrying.`);
+        stopProcessingEvents = true;
+        setTimeout(fetchEvents, retryDelay);
+    } else {
+        const exitDelay = GITHUB_FEATURE_FLAG_POST_COMMENTS ? GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY : 0;
+        console.error('Unhandled error:', error);
+        setTimeout(() => {
+            process.exit();
+        }, exitDelay)
+    }
+}
 
 process.on('SIGINT', function () {
     const exitDelay = GITHUB_FEATURE_FLAG_POST_COMMENTS ? GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY : 0;
