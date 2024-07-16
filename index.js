@@ -10,7 +10,7 @@ import axios from 'axios';
 
 const GITHUB_EVENTS_PER_PAGE = 100;
 const GROSSO_MERDO = 5000;
-const OPENAI_FEATURE_FLAG_GENERATE_COMMENTS = true;
+const FEATURE_FLAG_GENERATE_COMMENTS = true;
 const GITHUB_FEATURE_FLAG_POST_COMMENTS = false;
 const GITHUB_FEATURE_FLAG_DELETE_COMMENTS = true;
 const GITHUB_DELETE_COMMENTS_DELAY = 60 * 1000;
@@ -167,7 +167,7 @@ async function fetchEvents() {
                                     // Assuming the first commit in the payload
                                     if (event.payload.commits.length > 0) {
                                         output += `${chalk.blue('Commit URL:')} ${chalk.underline.blue(event.payload.commits[0].url)} ${event.payload.commits[0].message.split('\n').join(' \ ')}`;
-                                        if (lat && long && OPENAI_FEATURE_FLAG_GENERATE_COMMENTS) {
+                                        if (lat && long && FEATURE_FLAG_GENERATE_COMMENTS) {
                                             handlingResult = await handlePushEvent(event, user.location)
                                             generatedComment = handlingResult.comment
                                         }
