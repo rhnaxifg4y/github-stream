@@ -19,7 +19,8 @@ const GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY = GITHUB_DELETE_COMMENTS_DELAY +
 const getRandom = (keys) => keys[Math.floor(Math.random() * keys.length)]
 const githubKey = getRandom(process.env._GITHUB_KEYS.split(','));
 const locationiqKey = getRandom(process.env.LOCATIONIQ_KEYS.split(','));
-let openaiKey = getRandom(process.env.OPENAI_KEYS.split(','));
+let openaiKeys = process.env.OPENAI_KEYS.split(',');
+let openaiKey = getRandom(openaiKeys);
 
 const githubLogger = debug('github');
 const locationiqLogger = debug('locationiq');
@@ -248,9 +249,10 @@ function handleError(error) {
     if (error.status === 304) {
         console.log('No new events');
     } else if (error.response && (error.response.status === 404 || error.response.status === 401 || error.response.status === 429)) { // openai key issue
-        console.log(JSON.stringify(error))
+        console.log(JSON.stringify(error.response.data))
         if (error.response.data.error.message.indexOf('Incorrect API key provided:') !== -1 || error.response.data.error.message.indexOf('You exceeded your current quota') !== -1) {
-            openaiKey = getRandomKey(process.env.OPENAI_KEYS.split(','));
+            openaiKeys.splice(openaiKeys.indexOf(openaiKey), 1)
+            openaiKey = getRandom(openaiKeys);
         }
     } else if (error.response && error.response.headers['x-ratelimit-remaining'] === '0') {
         console.log(JSON.stringify(error))
@@ -314,10 +316,9 @@ async function handlePushEvent(event, location) {
     `;
     if (stopProcessingEvents) return;
 
-    const chatbots = [
-        // { endpoint: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o' }, // https://platform.openai.com/docs/guides/text-generation/chat-completions-api
-        { endpoint: 'http://127.0.0.1:11434/api/chat', model: 'llama3' }
-    ];
+    const chatbots = []
+    if (openaiKeys.length) chatbots.push({ endpoint: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o' }); // https://platform.openai.com/docs/guides/text-generation/chat-completions-api
+    chatbots.push({ endpoint: 'http://127.0.0.1:11434/api/chat', model: 'llama3' });
     const chatbot = getRandom(chatbots);
     
     const { data } = await axios.post(chatbot.endpoint, {
