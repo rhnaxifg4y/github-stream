@@ -17,9 +17,9 @@ const GITHUB_DELETE_COMMENTS_DELAY = 60 * 1000;
 const GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY = GITHUB_DELETE_COMMENTS_DELAY + (GITHUB_EVENTS_PER_PAGE * 1000) + GROSSO_MERDO;
 
 const getRandom = (keys) => keys[Math.floor(Math.random() * keys.length)]
-const githubKey = getRandom(process.env._GITHUB_KEYS.split(','));
-const locationiqKey = getRandom(process.env.LOCATIONIQ_KEYS.split(','));
-let openaiKeys = process.env.OPENAI_KEYS.split(',');
+const githubKey = getRandom(process.env._GITHUB_KEYS.split(',').filter(Boolean));
+const locationiqKey = getRandom(process.env.LOCATIONIQ_KEYS.split(',').filter(Boolean));
+let openaiKeys = process.env.OPENAI_KEYS.split(',').filter(Boolean);
 let openaiKey = getRandom(openaiKeys);
 
 const githubLogger = debug('github');
@@ -372,13 +372,7 @@ function handleError(error) {
         const resetTime = parseInt(error.response.headers['x-ratelimit-reset']) * 1000;
         const now = Date.now();
         const retryDelay = Math.max(resetTime - now, 0); // Ensure non-negative delay
-        let remainingTime = retryDelay;
-        const interval = setInterval(() => {
-            remainingTime -= 1000;
-            process.stdout.write(`Rate limit exceeded. Waiting for ${remainingTime / 1000} seconds before retrying.\r`);
-            if (remainingTime < 0)
-                clearInterval(interval);
-        }, 1000);
+        countdown(retryDelay, 'Rate limit exceeded. Waiting for');
         stopProcessingEvents = true;
         setTimeout(fetchEvents, retryDelay);
     } else {
@@ -392,15 +386,34 @@ function handleError(error) {
 
 process.on('SIGINT', function () {
     const exitDelay = GITHUB_FEATURE_FLAG_POST_COMMENTS ? GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY : 0;
-    let remainingTime = exitDelay;
-    const interval = setInterval(() => {
-        remainingTime -= 1000;
-        process.stdout.write(`Caught interrupt signal. Exiting in ${remainingTime / 1000}s...\r`);
-        if (remainingTime < 0)
-            clearInterval(interval);
-    }, 1000);
+    countdown(exitDelay, 'Caught interrupt signal. Exiting in');
     stopProcessingEvents = true;
     setTimeout(() => {
         process.exit();
     }, exitDelay)
 });
+
+function countdown(delay, message) {
+    let remainingTime = delay;
+    const interval = setInterval(() => {
+        remainingTime -= 1000;
+        process.stdout.write(`\x1b[2K${message} ${secondsToString(parseInt(remainingTime / 1000))}...\r`);
+        if (remainingTime < 0)
+            clearInterval(interval);
+    }, 1000);
+}
+
+function secondsToString(seconds) {
+    var numyears = Math.floor(seconds / 31536000);
+    var numdays = Math.floor((seconds % 31536000) / 86400);
+    var numhours = Math.floor(((seconds % 31536000) % 86400) / 3600);
+    var numminutes = Math.floor((((seconds % 31536000) % 86400) % 3600) / 60);
+    var numseconds = (((seconds % 31536000) % 86400) % 3600) % 60;
+    var result = [];
+    if (numyears > 0) result.push(numyears + " years");
+    if (numdays > 0) result.push(numdays + " days");
+    if (numhours > 0) result.push(numhours + " hours");
+    if (numminutes > 0) result.push(numminutes + " minutes");
+    if (numseconds > 0) result.push(numseconds + " seconds");
+    return result.join(" ");
+}
