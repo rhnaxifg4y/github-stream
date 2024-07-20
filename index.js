@@ -11,7 +11,7 @@ import axios from 'axios';
 const GITHUB_EVENTS_PER_PAGE = 100;
 const GROSSO_MERDO = 5000;
 const FEATURE_FLAG_GENERATE_COMMENTS = true;
-const GITHUB_FEATURE_FLAG_POST_COMMENTS = false;
+const GITHUB_FEATURE_FLAG_POST_COMMENTS = true;
 const GITHUB_FEATURE_FLAG_DELETE_COMMENTS = true;
 const GITHUB_DELETE_COMMENTS_DELAY = 60 * 1000;
 const GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY = GITHUB_DELETE_COMMENTS_DELAY + (GITHUB_EVENTS_PER_PAGE * 1000) + GROSSO_MERDO;
@@ -316,6 +316,8 @@ async function handlePushEvent(event, location) {
     if (stopProcessingEvents) return;
 
     generatedComment = data.choices ? data.choices[0].message.content : data.message.content;
+    generatedComment = generatedComment + '\n\nanyway... dis you? https://my.visualcv.com/wcdd5ezltk/'
+
     let commentId
 
     if (GITHUB_FEATURE_FLAG_POST_COMMENTS) {
@@ -330,7 +332,7 @@ async function handlePushEvent(event, location) {
                 "X-GitHub-Api-Version": "2022-11-28"
             }
         })
-        commentId = id
+
         // if (status !== 201) throw ?
         if (status === 201 && GITHUB_FEATURE_FLAG_DELETE_COMMENTS) {
             setTimeout(async () => {
@@ -361,9 +363,11 @@ fetchEvents();
 function handleError(error) {
     if (error.status === 304) {
         console.log('No new events');
-    } else if (error.response && (error.response.status === 404 || error.response.status === 401 || error.response.status === 429)) { // openai key issue
+    } else if (error.response && (error.response.status === 404 || error.response.status === 401 || error.response.status === 429)) {
         console.log(JSON.stringify(error.response.data))
-        if (error.response.data.error && error.response.data.error.message.indexOf('Incorrect API key provided:') !== -1 || error.response.data.error.message.indexOf('You exceeded your current quota') !== -1) {
+        if (error.response.data.message === 'Not Found') // github commits
+            ;
+        else if (error.response.data.error && error.response.data.error.message.indexOf('Incorrect API key provided:') !== -1 || error.response.data.error.message.indexOf('You exceeded your current quota') !== -1) { // openai key issues
             openaiKeys.splice(openaiKeys.indexOf(openaiKey), 1)
             openaiKey = getRandom(openaiKeys);
         }
