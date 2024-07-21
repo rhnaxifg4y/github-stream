@@ -14,6 +14,18 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: recursive
+      - name: Setup Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+      - name: Run ollama
+        run: |
+          ollama
+          ollama serve &
+          until curl --output /dev/null --silent --head --fail http://127.0.0.1:11434; do
+              printf '.'
+              sleep 5
+          done
+          ollama pull llama3
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
@@ -21,7 +33,9 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: Run index.js
-        run: node index.js
+        run: |
+          ollama serve &
+          node index.js
       - name: Commit data.json
         if: always()
         run: |
