@@ -18,6 +18,9 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: recursive
+      - name: Use main branch for globe submodule
+        run: |
+          cd ./globe && git checkout main && git pull && cd -
       - name: Setup Ollama
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
