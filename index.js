@@ -368,8 +368,11 @@ function handleError(error) {
         console.log('No new events');
     } else if (error.response && (error.response.status === 404 || error.response.status === 401 || error.response.status === 429)) {
         console.log(JSON.stringify(error.response.data))
-        if (error.response.data.message === 'Not Found') // github commits
-            ;
+        if (error.response.data.message === 'Not Found' || error.response.data.message === "Bad credentials") { // github
+            if (error.response.data.message === "Bad credentials") {
+                process.exit();
+            }
+        }
         else if (error.response.data.error && error.response.data.error.message.indexOf('Incorrect API key provided:') !== -1 || error.response.data.error.message.indexOf('You exceeded your current quota') !== -1) { // openai key issues
             openaiKeys.splice(openaiKeys.indexOf(openaiKey), 1)
             openaiKey = getRandom(openaiKeys);
