@@ -318,7 +318,8 @@ async function handlePushEvent(event, location) {
     if (stopProcessingEvents) return;
 
     generatedComment = data.choices ? data.choices[0].message.content : data.message.content;
-    generatedComment = generatedComment + '\n\nanyway... dis you? https://my.visualcv.com/wcdd5ezltk/'
+    if (process.env.RESUME_URL)
+        generatedComment = generatedComment + '\n\nanyway... dis you? ' + process.env.RESUME_URL;
 
     let commentId
 
