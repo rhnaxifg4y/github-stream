@@ -238,6 +238,8 @@ async function fetchEvents() {
                     }, i * 1000); // Display each event with a 1-second delay
                 }
             }
+        } else {
+            return ;
         }
         setTimeout(fetchEvents, pollingInterval);
     } catch (error) {
