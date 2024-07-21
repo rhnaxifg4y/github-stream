@@ -3,12 +3,13 @@
 # Usage
 
 ```
-$ git clone
+$ git clone && cd ./github-stream
+$ cd ./globe && git checkout main && git pull && cd -
 $ npm install
 $ cp .env.example .env
 $ curl -fsSL https://ollama.com/install.sh | sh
+$ ollama serve &
 $ ollama pull llama3
-$ ollama serve
 $ node index.js
 ```
 
@@ -23,7 +24,6 @@ Visualize data on the globe:
 
 ```
 $ cd ./globe
-$ git checkout main && git pull
 $ npm install
 $ npm run dev
 ```
