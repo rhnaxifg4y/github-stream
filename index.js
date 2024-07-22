@@ -8,6 +8,7 @@ import path from "path";
 import fs from "fs";
 import axios from 'axios';
 
+let FEATURE_FLAG_USE_OWN_LOCATION = false;
 const GITHUB_EVENTS_PER_PAGE = 100;
 const GROSSO_MERDO = 5000;
 const FEATURE_FLAG_GENERATE_COMMENTS = true;
@@ -41,6 +42,8 @@ const octokit = new Octokit({
     },
     auth: githubKey,
 })
+
+let userLocation = { latitude: 33.58535236663171, longitude: -7.631805876712778 };
 
 let etag = null;
 let lastModified = null;
@@ -197,7 +200,7 @@ async function fetchEvents() {
                                         uml: user.location,
                                         gm: { lat, lon: long },
                                         uol: user.location,
-                                        gop: { lat: 33.58535236663171, lon: -7.631805876712778 },
+                                        gop: { lat: userLocation.latitude, lon: userLocation.longitude },
                                         l: "WHO CARES", // repo dominant language?
                                         a: event.actor.login,
                                         nwo: event.repo.name,
@@ -361,7 +364,34 @@ async function handlePushEvent(event, location) {
     }
 }
 
-fetchEvents();
+async function getUserLocation() {
+    const ipifyKey = getRandom(process.env.IPIFY_KEYS.split(',').filter(Boolean));
+    if (ipifyKey) {
+        const { data: ip } = await axios.get('https://api.ipify.org');
+        const { data: { location } } = await axios.get('https://geo.ipify.org/api/v2/country?apiKey=' + ipifyKey + '&ipAddress=' + ip);
+        const githubGeocoder = NodeGeocoder({ provider: 'locationiq', apiKey: locationiqKey });
+        if (stopProcessingEvents) return;
+        const res = await githubGeocoder.geocode(location.region + '(' + location.country + ')');
+        if (res && res.length) {
+            userLocation = res[0];
+            console.log(`Striking from ${location.region + ' (' + location.country + ')'} ${rainbow(`(${userLocation.latitude}, ${userLocation.longitude})`)}`);
+        } else {
+            throw new Error("LMAO");
+        }
+    }
+}
+
+(async () => {
+    try {
+        if (FEATURE_FLAG_USE_OWN_LOCATION)
+            await getUserLocation();
+    } catch (error) {
+        FEATURE_FLAG_USE_OWN_LOCATION = false;
+    }
+    if (!FEATURE_FLAG_USE_OWN_LOCATION)
+        console.log("Couldn't use own location... striking from Casablanca <3");
+    fetchEvents();
+})()
 
 function handleError(error) {
     if (error.status === 304) {
