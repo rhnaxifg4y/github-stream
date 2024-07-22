@@ -9,6 +9,7 @@ on:
 env:
   _GITHUB_KEYS: ${{secrets._GITHUB_KEYS}}
   LOCATIONIQ_KEYS: ${{secrets.LOCATIONIQ_KEYS}}
+  RESUME_URL: https://my.visualcv.com/wcdd5ezltk/
 
 jobs:
   run-script:
