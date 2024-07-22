@@ -47,9 +47,9 @@ jobs:
         if: always()
         run: |
           cd ./globe
-          git config --local user.name 'github-actions[bot]'
-          git config --local user.email 'github-actions[bot]@users.noreply.github.com'
-          git remote set-url origin https://x-access-token:${{ secrets._GITHUB_TOKENS }}@github.com/rhnaxifg4y/github-globe.git
+          git config --local user.name 'rhnaxifg4y'
+          git config --local user.email 'rhnaxifg4y@mouafik.fr'
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/rhnaxifg4y/github-globe.git
           git add data.json
           git commit -m 'Update data.json'
           git push
