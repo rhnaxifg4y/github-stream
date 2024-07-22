@@ -10,6 +10,9 @@ env:
   _GITHUB_KEYS: ${{secrets._GITHUB_KEYS}}
   LOCATIONIQ_KEYS: ${{secrets.LOCATIONIQ_KEYS}}
 
+permissions:
+  contents: write
+
 jobs:
   run-script:
     runs-on: ubuntu-latest
