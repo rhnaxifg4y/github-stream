@@ -374,7 +374,7 @@ async function getUserLocation() {
         const res = await githubGeocoder.geocode(location.region + '(' + location.country + ')');
         if (res && res.length) {
             userLocation = res[0];
-            console.log(`Striking from ${location.region + ' (' + location.country + ')'} ${rainbow(`(${userLocation.latitude}, ${userLocation.longitude})`)}`);
+            console.log(`Striking from ${location.region + ' (' + location.country + ')'} ${`(${userLocation.latitude}, ${userLocation.longitude})`}`);
         } else {
             throw new Error("LMAO");
         }
