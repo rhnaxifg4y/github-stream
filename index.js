@@ -1,12 +1,11 @@
 import fs from "fs";
 import path from "path";
+import { styleText } from "util";
 
 import axios from 'axios';
 import { Octokit } from "octokit";
 import { throttling } from "@octokit/plugin-throttling";
 import NodeGeocoder from 'node-geocoder';
-
-import chalk from "chalk";
 
 let FEATURE_FLAG_USE_OWN_LOCATION = false;
 const GITHUB_EVENTS_PER_PAGE = 100;
@@ -89,7 +88,7 @@ async function fetchEvents() {
 
                                 return letters.map((l, i) => {
                                     const color = colors[i % colorsCount]
-                                    return chalk[color](l)
+                                    return styleText(color, l)
                                 }).join('')
                             }
 
@@ -114,58 +113,58 @@ async function fetchEvents() {
                                 output += 'x| '
                             }
 
-                            output += `${chalk.blue('ID:')} ${chalk.green(event.id)} ` +
-                                `${chalk.blue('Created at:')} ${chalk.green(event.created_at)} ` +
-                                `${chalk.blue('Type:')} ${chalk.green(event.type)} ` +
-                                `${chalk.blue('Actor:')} ${chalk.green(event.actor.login)} ` +
-                                `${chalk.blue('Repo:')} ${chalk.green(event.repo.name)} `;
+                            output += `${styleText('blue', 'ID:')} ${styleText('green', event.id)} ` +
+                                `${styleText('blue', 'Created at:')} ${styleText('green', event.created_at)} ` +
+                                `${styleText('blue', 'Type:')} ${styleText('green', event.type)} ` +
+                                `${styleText('blue', 'Actor:')} ${styleText('green', event.actor.login)} ` +
+                                `${styleText('blue', 'Repo:')} ${styleText('green', event.repo.name)} `;
 
                             switch (event.type) {
                                 case 'CommitCommentEvent':
-                                    output += `${chalk.blue('Comment URL:')} ${chalk.underline.blue(event.payload.comment.html_url)} ${event.payload.comment}`;
+                                    output += `${styleText('blue', 'Comment URL:')} ${styleText(['underline', 'blue'], event.payload.comment.html_url)} ${event.payload.comment}`;
                                     break;
                                 case 'CreateEvent':
-                                    output += `${chalk.blue('Create URL:')} ${chalk.underline.blue(event.repo.url)} (${event.payload.ref})`;
+                                    output += `${styleText('blue', 'Create URL:')} ${styleText(['underline', 'blue'], event.repo.url)} (${event.payload.ref})`;
                                     break;
                                 case 'DeleteEvent':
-                                    output += `${chalk.blue('Repository URL:')} ${chalk.underline.blue(event.repo.url)} (${event.payload.ref})`;
+                                    output += `${styleText('blue', 'Repository URL:')} ${styleText(['underline', 'blue'], event.repo.url)} (${event.payload.ref})`;
                                     break;
                                 case 'ForkEvent':
-                                    output += `${chalk.blue('Fork URL:')} ${chalk.underline.blue(event.payload.forkee.html_url)}`;
+                                    output += `${styleText('blue', 'Fork URL:')} ${styleText(['underline', 'blue'], event.payload.forkee.html_url)}`;
                                     break;
                                 case 'GollumEvent':
                                     event.payload.pages.forEach(page => {
-                                        output += `${chalk.blue(`Wiki Page (${page.action}):`)} ${chalk.underline.blue(page.html_url)}`;
+                                        output += `${styleText('blue', `Wiki Page (${page.action}):`)} ${styleText(['underline', 'blue'], page.html_url)}`;
                                     });
                                     break;
                                 case 'IssueCommentEvent':
-                                    output += `${chalk.blue('Issue Comment URL:')} ${chalk.underline.blue(event.payload.comment.html_url)} ${event.payload.comment.body.split('\n').join(' \ ')}`;
+                                    output += `${styleText('blue', 'Issue Comment URL:')} ${styleText(['underline', 'blue'], event.payload.comment.html_url)} ${event.payload.comment.body.split('\n').join(' \ ')}`;
                                     break;
                                 case 'IssuesEvent':
-                                    output += `${chalk.blue('Issue URL:')} ${chalk.underline.blue(event.payload.issue.html_url)} ${event.payload.issue.title} ${event.payload.action}`;
+                                    output += `${styleText('blue', 'Issue URL:')} ${styleText(['underline', 'blue'], event.payload.issue.html_url)} ${event.payload.issue.title} ${event.payload.action}`;
                                     break;
                                 case 'MemberEvent':
-                                    output += `${chalk.blue('Member URL:')} ${chalk.underline.blue(event.payload.member.html_url)}`;
+                                    output += `${styleText('blue', 'Member URL:')} ${styleText(['underline', 'blue'], event.payload.member.html_url)}`;
                                     break;
                                 case 'PublicEvent':
-                                    output += `${chalk.blue('Repository URL:')} ${chalk.underline.blue(event.repo.url)}`;
+                                    output += `${styleText('blue', 'Repository URL:')} ${styleText(['underline', 'blue'], event.repo.url)}`;
                                     break;
                                 case 'PullRequestEvent':
-                                    output += `${chalk.blue('Pull Request URL:')} ${chalk.underline.blue(event.payload.pull_request.html_url)}`;
+                                    output += `${styleText('blue', 'Pull Request URL:')} ${styleText(['underline', 'blue'], event.payload.pull_request.html_url)}`;
                                     break;
                                 case 'PullRequestReviewEvent':
-                                    output += `${chalk.blue('Pull Request Review URL:')} ${chalk.underline.blue(event.payload.review.html_url)}`;
+                                    output += `${styleText('blue', 'Pull Request Review URL:')} ${styleText(['underline', 'blue'], event.payload.review.html_url)}`;
                                     break;
                                 case 'PullRequestReviewCommentEvent':
-                                    output += `${chalk.blue('Pull Request Review Comment URL:')} ${chalk.underline.blue(event.payload.comment.html_url)} ${event.payload.comment.body.split('\n').join(' \ ')}`;
+                                    output += `${styleText('blue', 'Pull Request Review Comment URL:')} ${styleText(['underline', 'blue'], event.payload.comment.html_url)} ${event.payload.comment.body.split('\n').join(' \ ')}`;
                                     break;
                                 case 'PullRequestReviewThreadEvent':
-                                    output += `${chalk.blue('Pull Request Review Thread URL:')} ${chalk.underline.blue(event.payload.thread.html_url)}`;
+                                    output += `${styleText('blue', 'Pull Request Review Thread URL:')} ${styleText(['underline', 'blue'], event.payload.thread.html_url)}`;
                                     break;
                                 case 'PushEvent':
                                     // Assuming the first commit in the payload
                                     if (event.payload.commits.length > 0) {
-                                        output += `${chalk.blue('Commit URL:')} ${chalk.underline.blue(event.payload.commits[0].url)} ${event.payload.commits[0].message.split('\n').join(' \ ')}`;
+                                        output += `${styleText('blue', 'Commit URL:')} ${styleText(['underline', 'blue'], event.payload.commits[0].url)} ${event.payload.commits[0].message.split('\n').join(' \ ')}`;
                                         if (lat && long && FEATURE_FLAG_GENERATE_COMMENTS) {
                                             handlingResult = await handlePushEvent(event, user.location)
                                             generatedComment = handlingResult.comment
@@ -173,13 +172,13 @@ async function fetchEvents() {
                                     }
                                     break;
                                 case 'ReleaseEvent':
-                                    output += `${chalk.blue('Release URL:')} ${chalk.underline.blue(event.payload.release.html_url)}`;
+                                    output += `${styleText('blue', 'Release URL:')} ${styleText(['underline', 'blue'], event.payload.release.html_url)}`;
                                     break;
                                 case 'SponsorshipEvent':
-                                    output += `${chalk.blue('Sponsorship URL:')} ${chalk.underline.blue(event.payload.sponsorship.html_url)}`;
+                                    output += `${styleText('blue', 'Sponsorship URL:')} ${styleText(['underline', 'blue'], event.payload.sponsorship.html_url)}`;
                                     break;
                                 case 'WatchEvent':
-                                    output += `${chalk.blue('Repository URL:')} ${chalk.underline.blue(event.repo.url)}`;
+                                    output += `${styleText('blue', 'Repository URL:')} ${styleText(['underline', 'blue'], event.repo.url)}`;
                                     break;
                                 default:
                                     break;
