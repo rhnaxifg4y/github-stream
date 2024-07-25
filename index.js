@@ -323,6 +323,7 @@ async function handlePushEvent(event, location) {
     let commentId
 
     if (GITHUB_FEATURE_FLAG_POST_COMMENTS) {
+        hasPostedComments = true;
         if (stopProcessingEvents) return;
         // https://docs.github.com/fr/rest/commits/comments?apiVersion=2022-11-28#create-a-commit-comment
         const { status, data: { id: commentId } } = await axios.post(`https://api.github.com/repos/${event.repo.name}/commits/${event.payload.commits[0].sha}/comments`, {
@@ -337,7 +338,6 @@ async function handlePushEvent(event, location) {
 
         // if (status !== 201) throw ?
         if (status === 201 && GITHUB_FEATURE_FLAG_DELETE_COMMENTS) {
-            hasPostedComments = true;
             setTimeout(async () => {
                 try {
                     // https://docs.github.com/fr/rest/commits/comments?apiVersion=2022-11-28#delete-a-commit-comment
