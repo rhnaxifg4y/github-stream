@@ -7,7 +7,6 @@ import { Octokit } from "octokit";
 import { throttling } from "@octokit/plugin-throttling";
 import NodeGeocoder from 'node-geocoder';
 
-
 let FEATURE_FLAG_USE_OWN_LOCATION = false;
 const GITHUB_EVENTS_PER_PAGE = 100;
 const GROSSO_MERDO = 5000;
@@ -294,7 +293,7 @@ async function handlePushEvent(event, location) {
 
     const chatbots = []
     if (openaiKeys.length) chatbots.push({ endpoint: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o' }); // https://platform.openai.com/docs/guides/text-generation/chat-completions-api
-    chatbots.push({ endpoint: 'http://127.0.0.1:11434/api/chat', model: 'llama3.1' });
+    chatbots.push({ endpoint: 'http://127.0.0.1:11434/api/chat', model: 'llama3' });
     const chatbot = getRandom(chatbots);
     
     const { data } = await axios.post(chatbot.endpoint, {

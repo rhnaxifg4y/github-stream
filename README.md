@@ -20,7 +20,7 @@ $ npm install
 $ cp .env.example .env
 $ curl -fsSL https://ollama.com/install.sh | sh
 $ ollama serve &
-$ ollama pull llama3.1
+$ ollama pull llama3
 $ npm start
 ```
 
