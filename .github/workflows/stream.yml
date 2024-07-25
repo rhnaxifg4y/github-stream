@@ -44,6 +44,7 @@ jobs:
         run: |
           ollama serve &
           timeout 30m node index.js
+          exit 0
       - name: Commit data.json
         if: always()
         run: |
