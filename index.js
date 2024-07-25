@@ -1,10 +1,12 @@
+import fs from "fs";
+import path from "path";
+
+import axios from 'axios';
 import { Octokit } from "octokit";
 import { throttling } from "@octokit/plugin-throttling";
 import NodeGeocoder from 'node-geocoder';
+
 import chalk from "chalk";
-import path from "path";
-import fs from "fs";
-import axios from 'axios';
 
 let FEATURE_FLAG_USE_OWN_LOCATION = false;
 const GITHUB_EVENTS_PER_PAGE = 100;
