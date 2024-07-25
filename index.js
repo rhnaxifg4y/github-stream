@@ -2,7 +2,6 @@ import { Octokit } from "octokit";
 import { throttling } from "@octokit/plugin-throttling";
 import NodeGeocoder from 'node-geocoder';
 import chalk from "chalk";
-import debug from "debug";
 import path from "path";
 import fs from "fs";
 import axios from 'axios';
@@ -21,10 +20,6 @@ const githubKey = getRandom(process.env._GITHUB_KEYS.split(',').filter(Boolean))
 const locationiqKey = getRandom(process.env.LOCATIONIQ_KEYS.split(',').filter(Boolean));
 let openaiKeys = process.env.OPENAI_KEYS ? process.env.OPENAI_KEYS.split(',').filter(Boolean) : [];
 let openaiKey = getRandom(openaiKeys);
-
-const githubLogger = debug('github');
-const locationiqLogger = debug('locationiq');
-const openaiLogger = debug('openai');
 
 const octokitLogHandler = (e, d) => {
     process.nextTick();
