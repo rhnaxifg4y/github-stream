@@ -5,6 +5,8 @@ on:
     branches:
       - master
   workflow_dispatch:
+  schedule:
+    - cron: 0 */3 * * *
 
 env:
   _GITHUB_KEYS: ${{secrets._GITHUB_KEYS}}
@@ -44,7 +46,7 @@ jobs:
       - name: Run index.js
         run: |
           ollama serve &
-          node index.js
+          timeout 30m node index.js
       - name: Commit data.json
         if: always()
         run: |
