@@ -21,7 +21,7 @@ $ cp .env.example .env
 $ curl -fsSL https://ollama.com/install.sh | sh
 $ ollama serve &
 $ ollama pull llama3
-$ node index.js
+$ npm start
 ```
 
 Run the GitHub Actions workflow locally using [act-cli](https://github.com/nektos/act):

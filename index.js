@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import { Octokit } from "octokit";
 import { throttling } from "@octokit/plugin-throttling";
 import NodeGeocoder from 'node-geocoder';
