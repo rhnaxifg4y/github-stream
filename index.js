@@ -46,6 +46,7 @@ let lastModified = null;
 let pollingInterval = 0;
 
 let stopProcessingEvents = false;
+let hasPostedComments = false;
 
 async function fetchEvents() {
     try {
@@ -337,6 +338,7 @@ async function handlePushEvent(event, location) {
 
         // if (status !== 201) throw ?
         if (status === 201 && GITHUB_FEATURE_FLAG_DELETE_COMMENTS) {
+            hasPostedComments = true;
             setTimeout(async () => {
                 try {
                     // https://docs.github.com/fr/rest/commits/comments?apiVersion=2022-11-28#delete-a-commit-comment
@@ -421,7 +423,7 @@ function handleError(error) {
 }
 
 process.on('SIGINT', function () {
-    const exitDelay = GITHUB_FEATURE_FLAG_POST_COMMENTS ? GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY : 0;
+    const exitDelay = hasPostedComments ? GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY : 0;
     countdown(exitDelay, 'Caught interrupt signal. Exiting in');
     stopProcessingEvents = true;
     setTimeout(() => {
