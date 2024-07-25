@@ -11,7 +11,7 @@ let FEATURE_FLAG_USE_OWN_LOCATION = false;
 const GITHUB_EVENTS_PER_PAGE = 100;
 const GROSSO_MERDO = 5000;
 const FEATURE_FLAG_GENERATE_COMMENTS = true;
-const GITHUB_FEATURE_FLAG_POST_COMMENTS = true;
+const GITHUB_FEATURE_FLAG_POST_COMMENTS = false;
 const GITHUB_FEATURE_FLAG_DELETE_COMMENTS = true;
 const GITHUB_DELETE_COMMENTS_DELAY = 60 * 1000;
 const GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY = GITHUB_DELETE_COMMENTS_DELAY + (GITHUB_EVENTS_PER_PAGE * 1000) + GROSSO_MERDO;
@@ -251,10 +251,10 @@ async function handlePushEvent(event, location) {
     const { url } = event.payload.commits[0];
     if (stopProcessingEvents) return;
 
-    const { status, data: { files } } = await axios.get(url, {
+    const { files } = await (await fetch(url, {
         headers: { "Authorization": "Bearer " + githubKey }
-    })
-    if (status !== 200) return;
+    })).json();
+
     if (stopProcessingEvents) return;
 
     const PROMPT_1 = `
@@ -325,23 +325,23 @@ async function handlePushEvent(event, location) {
     if (GITHUB_FEATURE_FLAG_POST_COMMENTS) {
         if (stopProcessingEvents) return;
         // https://docs.github.com/fr/rest/commits/comments?apiVersion=2022-11-28#create-a-commit-comment
-        const { status, data: { id: commentId } } = await axios.post(`https://api.github.com/repos/${event.repo.name}/commits/${event.payload.commits[0].sha}/comments`, {
-            body: generatedComment,
-        }, {
+        const { id: commentId } = await (await fetch(`https://api.github.com/repos/${event.repo.name}/commits/${event.payload.commits[0].sha}/comments`, {
+            method: "POST",
             headers: {
                 "Accept": "application/vnd.github+json",
                 'Authorization': `Bearer ${githubKey}`,
                 "X-GitHub-Api-Version": "2022-11-28"
-            }
-        })
+            },
+            body: generatedComment
+        })).json();
 
-        // if (status !== 201) throw ?
-        if (status === 201 && GITHUB_FEATURE_FLAG_DELETE_COMMENTS) {
+        if (GITHUB_FEATURE_FLAG_DELETE_COMMENTS) {
             hasPostedComments = true;
             setTimeout(async () => {
                 try {
                     // https://docs.github.com/fr/rest/commits/comments?apiVersion=2022-11-28#delete-a-commit-comment
-                    await axios.delete(`https://api.github.com/repos/${event.repo.name}/comments/${commentId}`, {
+                    await fetch(`https://api.github.com/repos/${event.repo.name}/comments/${commentId}`, {
+                        method: "DELETE",
                         headers: {
                             "Accept": "application/vnd.github+json",
                             'Authorization': `Bearer ${githubKey}`,
@@ -364,8 +364,8 @@ async function handlePushEvent(event, location) {
 async function getUserLocation() {
     const ipifyKey = getRandom(process.env.IPIFY_KEYS.split(',').filter(Boolean));
     if (ipifyKey) {
-        const { data: ip } = await axios.get('https://api.ipify.org');
-        const { data: { location } } = await axios.get('https://geo.ipify.org/api/v2/country?apiKey=' + ipifyKey + '&ipAddress=' + ip);
+        const ip = await (await fetch('https://api.ipify.org')).text();
+        const { location } = await (await fetch('https://geo.ipify.org/api/v2/country?apiKey=' + ipifyKey + '&ipAddress=' + ip)).json();
         const githubGeocoder = NodeGeocoder({ provider: 'locationiq', apiKey: locationiqKey });
         if (stopProcessingEvents) return;
         const res = await githubGeocoder.geocode(location.region + '(' + location.country + ')');
