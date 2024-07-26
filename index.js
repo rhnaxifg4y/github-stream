@@ -5,7 +5,6 @@ import { styleText } from "util";
 import axios from 'axios';
 import { Octokit } from "octokit";
 import { throttling } from "@octokit/plugin-throttling";
-import NodeGeocoder from 'node-geocoder';
 
 let FEATURE_FLAG_USE_OWN_LOCATION = false;
 const GITHUB_EVENTS_PER_PAGE = 100;
@@ -38,7 +37,7 @@ const octokit = new Octokit({
     auth: githubKey,
 })
 
-let userLocation = { latitude: 33.58535236663171, longitude: -7.631805876712778 };
+let userLocation = { lat: 33.58535236663171, lon: -7.631805876712778 };
 
 let etag = null;
 let lastModified = null;
@@ -95,12 +94,11 @@ async function fetchEvents() {
 
                             try {
                                 if (user && user.location) {
-                                    const geocoder = NodeGeocoder({ provider: 'locationiq', apiKey: locationiqKey });
                                     if (stopProcessingEvents) return;
-                                    res = await geocoder.geocode(user.location);
+                                    const res = await (await _fetch(`https://us1.locationiq.com/v1/search?key=${locationiqKey}&q=${encodeURI(user.location)}&format=json&`)).json();
                                     if (stopProcessingEvents) return;
                                     if (res && res.length) {
-                                        const { latitude, longitude } = res[0];
+                                        const { lat: latitude, lon: longitude } = res[0];
                                         lat = latitude
                                         long = longitude
                                         output += `${rainbow(`(${latitude}, ${longitude})`)} `;
@@ -196,7 +194,7 @@ async function fetchEvents() {
                                         uml: user.location,
                                         gm: { lat, lon: long },
                                         uol: user.location,
-                                        gop: { lat: userLocation.latitude, lon: userLocation.longitude },
+                                        gop: { lat: userLocation.lat, lon: userLocation.lon },
                                         l: "WHO CARES", // repo dominant language?
                                         a: event.actor.login,
                                         nwo: event.repo.name,
@@ -366,12 +364,11 @@ async function getUserLocation() {
     if (ipifyKey) {
         const ip = await (await _fetch('https://api.ipify.org')).text();
         const { location } = await (await _fetch('https://geo.ipify.org/api/v2/country?apiKey=' + ipifyKey + '&ipAddress=' + ip)).json();
-        const githubGeocoder = NodeGeocoder({ provider: 'locationiq', apiKey: locationiqKey });
         if (stopProcessingEvents) return;
-        const res = await githubGeocoder.geocode(location.region + '(' + location.country + ')');
+        const res = await (await _fetch(`https://us1.locationiq.com/v1/search?key=${locationiqKey}&q=${encodeURI(location.region + '(' + location.country + ')')}&format=json&`)).json();
         if (res && res.length) {
             userLocation = res[0];
-            console.log(`Striking from ${location.region + ' (' + location.country + ')'} ${`(${userLocation.latitude}, ${userLocation.longitude})`}`);
+            console.log(`Striking from ${location.region + ' (' + location.country + ')'} ${`(${userLocation.lat}, ${userLocation.lon})`}`);
         } else {
             throw new Error("LMAO");
         }

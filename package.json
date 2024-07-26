@@ -6,7 +6,6 @@
   "dependencies": {
     "@octokit/plugin-throttling": "^9.3.0",
     "axios": "^1.7.2",
-    "node-geocoder": "^4.3.0",
     "octokit": "^4.0.2"
   },
   "scripts": {
