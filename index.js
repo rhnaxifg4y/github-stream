@@ -2,16 +2,14 @@ import fs from "fs";
 import path from "path";
 import { styleText } from "util";
 
-import axios from 'axios';
 import { Octokit } from "octokit";
 import { throttling } from "@octokit/plugin-throttling";
-import NodeGeocoder from 'node-geocoder';
 
 let FEATURE_FLAG_USE_OWN_LOCATION = false;
 const GITHUB_EVENTS_PER_PAGE = 100;
 const GROSSO_MERDO = 5000;
 const FEATURE_FLAG_GENERATE_COMMENTS = true;
-const GITHUB_FEATURE_FLAG_POST_COMMENTS = true;
+const GITHUB_FEATURE_FLAG_POST_COMMENTS = false;
 const GITHUB_FEATURE_FLAG_DELETE_COMMENTS = true;
 const GITHUB_DELETE_COMMENTS_DELAY = 60 * 1000;
 const GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY = GITHUB_DELETE_COMMENTS_DELAY + (GITHUB_EVENTS_PER_PAGE * 1000) + GROSSO_MERDO;
@@ -38,7 +36,7 @@ const octokit = new Octokit({
     auth: githubKey,
 })
 
-let userLocation = { latitude: 33.58535236663171, longitude: -7.631805876712778 };
+let userLocation = { lat: 33.58535236663171, lon: -7.631805876712778 };
 
 let etag = null;
 let lastModified = null;
@@ -46,6 +44,22 @@ let pollingInterval = 0;
 
 let stopProcessingEvents = false;
 let hasPostedComments = false;
+
+async function getUserLocation() {
+    const ipifyKey = getRandom(process.env.IPIFY_KEYS.split(',').filter(Boolean));
+    if (ipifyKey) {
+        const ip = await (await _fetch('https://api.ipify.org')).text();
+        const { location } = await (await _fetch('https://geo.ipify.org/api/v2/country?apiKey=' + ipifyKey + '&ipAddress=' + ip)).json();
+        if (stopProcessingEvents) return;
+        const res = await (await _fetch(`https://us1.locationiq.com/v1/search?key=${locationiqKey}&q=${encodeURI(location.region + '(' + location.country + ')')}&format=json&`)).json();
+        if (res && res.length) {
+            userLocation = res[0];
+            console.log(`Striking from ${location.region + ' (' + location.country + ')'} ${`(${userLocation.lat}, ${userLocation.lon})`}`);
+        } else {
+            throw new Error("LMAO");
+        }
+    }
+}
 
 async function fetchEvents() {
     try {
@@ -95,12 +109,11 @@ async function fetchEvents() {
 
                             try {
                                 if (user && user.location) {
-                                    const geocoder = NodeGeocoder({ provider: 'locationiq', apiKey: locationiqKey });
                                     if (stopProcessingEvents) return;
-                                    res = await geocoder.geocode(user.location);
+                                    const res = await (await _fetch(`https://us1.locationiq.com/v1/search?key=${locationiqKey}&q=${encodeURI(user.location)}&format=json&`)).json();
                                     if (stopProcessingEvents) return;
                                     if (res && res.length) {
-                                        const { latitude, longitude } = res[0];
+                                        const { lat: latitude, lon: longitude } = res[0];
                                         lat = latitude
                                         long = longitude
                                         output += `${rainbow(`(${latitude}, ${longitude})`)} `;
@@ -196,7 +209,7 @@ async function fetchEvents() {
                                         uml: user.location,
                                         gm: { lat, lon: long },
                                         uol: user.location,
-                                        gop: { lat: userLocation.latitude, lon: userLocation.longitude },
+                                        gop: { lat: userLocation.lat, lon: userLocation.lon },
                                         l: "WHO CARES", // repo dominant language?
                                         a: event.actor.login,
                                         nwo: event.repo.name,
@@ -251,10 +264,10 @@ async function handlePushEvent(event, location) {
     const { url } = event.payload.commits[0];
     if (stopProcessingEvents) return;
 
-    const { status, data: { files } } = await axios.get(url, {
+    const { files } = await (await _fetch(url, {
         headers: { "Authorization": "Bearer " + githubKey }
-    })
-    if (status !== 200) return;
+    })).json();
+
     if (stopProcessingEvents) return;
 
     const PROMPT_1 = `
@@ -296,24 +309,27 @@ async function handlePushEvent(event, location) {
     chatbots.push({ endpoint: 'http://127.0.0.1:11434/api/chat', model: 'llama3' });
     const chatbot = getRandom(chatbots);
     
-    const { data } = await axios.post(chatbot.endpoint, {
-        model: chatbot.model,
-        messages: [
-            {
-                role: "system",
-                content: PROMPT_WRAPPER(
-                    PROMPTS[Math.floor(Math.random() * PROMPTS.length)],
-                    files
-                ),
-            }
-        ],
-        stream: false
-    }, {
+    const data = await (await _fetch(chatbot.endpoint, {
+        signal: AbortSignal.timeout(10 * 60 * 1000), // NOTE: might still timeout after 5mn only
+        method: "POST",
         headers: {
             "Content-Type": "application/json",
             'Authorization': `Bearer ${openaiKey}`
-        }
-    })
+        },
+        body: JSON.stringify({
+            model: chatbot.model,
+            messages: [
+                {
+                    role: "system",
+                    content: PROMPT_WRAPPER(
+                        PROMPTS[Math.floor(Math.random() * PROMPTS.length)],
+                        files
+                    ),
+                }
+            ],
+            stream: false
+        })
+    })).json();
     if (stopProcessingEvents) return;
 
     generatedComment = data.choices ? data.choices[0].message.content : data.message.content;
@@ -326,22 +342,23 @@ async function handlePushEvent(event, location) {
         hasPostedComments = true;
         if (stopProcessingEvents) return;
         // https://docs.github.com/fr/rest/commits/comments?apiVersion=2022-11-28#create-a-commit-comment
-        const { status, data: { id: commentId } } = await axios.post(`https://api.github.com/repos/${event.repo.name}/commits/${event.payload.commits[0].sha}/comments`, {
-            body: generatedComment,
-        }, {
+        const { id: commentId } = await (await _fetch(`https://api.github.com/repos/${event.repo.name}/commits/${event.payload.commits[0].sha}/comments`, {
+            method: "POST",
             headers: {
                 "Accept": "application/vnd.github+json",
                 'Authorization': `Bearer ${githubKey}`,
                 "X-GitHub-Api-Version": "2022-11-28"
-            }
-        })
+            },
+            body: generatedComment
+        })).json();
 
-        // if (status !== 201) throw ?
-        if (status === 201 && GITHUB_FEATURE_FLAG_DELETE_COMMENTS) {
+        if (GITHUB_FEATURE_FLAG_DELETE_COMMENTS) {
+            hasPostedComments = true;
             setTimeout(async () => {
                 try {
                     // https://docs.github.com/fr/rest/commits/comments?apiVersion=2022-11-28#delete-a-commit-comment
-                    await axios.delete(`https://api.github.com/repos/${event.repo.name}/comments/${commentId}`, {
+                    await _fetch(`https://api.github.com/repos/${event.repo.name}/comments/${commentId}`, {
+                        method: "DELETE",
                         headers: {
                             "Accept": "application/vnd.github+json",
                             'Authorization': `Bearer ${githubKey}`,
@@ -361,24 +378,39 @@ async function handlePushEvent(event, location) {
     }
 }
 
-async function getUserLocation() {
-    const ipifyKey = getRandom(process.env.IPIFY_KEYS.split(',').filter(Boolean));
-    if (ipifyKey) {
-        const { data: ip } = await axios.get('https://api.ipify.org');
-        const { data: { location } } = await axios.get('https://geo.ipify.org/api/v2/country?apiKey=' + ipifyKey + '&ipAddress=' + ip);
-        const githubGeocoder = NodeGeocoder({ provider: 'locationiq', apiKey: locationiqKey });
-        if (stopProcessingEvents) return;
-        const res = await githubGeocoder.geocode(location.region + '(' + location.country + ')');
-        if (res && res.length) {
-            userLocation = res[0];
-            console.log(`Striking from ${location.region + ' (' + location.country + ')'} ${`(${userLocation.latitude}, ${userLocation.longitude})`}`);
-        } else {
-            throw new Error("LMAO");
+async function handleError(e) {
+    const { message, error } = await error.json();
+    if (e.status === 304) {
+        console.log('No new events');
+    } else if (e.status === 404 || e.status === 401 || e.status === 429) {
+        console.log(JSON.stringify(e))
+        if (message === 'Not Found' || message === "Bad credentials") { // github
+            if (message === "Bad credentials") {
+                process.exit();
+            }
         }
+        else if (error && error.message.indexOf('Incorrect API key provided:') !== -1 || error.message.indexOf('You exceeded your current quota') !== -1) { // openai key issues
+            openaiKeys.splice(openaiKeys.indexOf(openaiKey), 1)
+            openaiKey = getRandom(openaiKeys);
+        }
+    } else if (e.headers && e.headers['x-ratelimit-remaining'] === '0') {
+        console.log(JSON.stringify(e))
+        const resetTime = parseInt(e.headers['x-ratelimit-reset']) * 1000;
+        const now = Date.now();
+        const retryDelay = Math.max(resetTime - now, 0); // Ensure non-negative delay
+        countdown(retryDelay, 'Rate limit exceeded. Waiting for');
+        stopProcessingEvents = true;
+        setTimeout(fetchEvents, retryDelay);
+    } else {
+        const exitDelay = GITHUB_FEATURE_FLAG_POST_COMMENTS ? GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY : 0;
+        console.error('Unhandled error:', e);
+        setTimeout(() => {
+            process.exit();
+        }, exitDelay)
     }
 }
 
-(async () => {
+const main = async function () {
     try {
         if (FEATURE_FLAG_USE_OWN_LOCATION)
             await getUserLocation();
@@ -388,37 +420,10 @@ async function getUserLocation() {
     if (!FEATURE_FLAG_USE_OWN_LOCATION)
         console.log("Couldn't use own location... striking from Casablanca <3");
     fetchEvents();
-})()
+};
 
-function handleError(error) {
-    if (error.status === 304) {
-        console.log('No new events');
-    } else if (error.response && (error.response.status === 404 || error.response.status === 401 || error.response.status === 429)) {
-        console.log(JSON.stringify(error.response.data))
-        if (error.response.data.message === 'Not Found' || error.response.data.message === "Bad credentials") { // github
-            if (error.response.data.message === "Bad credentials") {
-                process.exit();
-            }
-        }
-        else if (error.response.data.error && error.response.data.error.message.indexOf('Incorrect API key provided:') !== -1 || error.response.data.error.message.indexOf('You exceeded your current quota') !== -1) { // openai key issues
-            openaiKeys.splice(openaiKeys.indexOf(openaiKey), 1)
-            openaiKey = getRandom(openaiKeys);
-        }
-    } else if (error.response && error.response.headers['x-ratelimit-remaining'] === '0') {
-        console.log(JSON.stringify(error))
-        const resetTime = parseInt(error.response.headers['x-ratelimit-reset']) * 1000;
-        const now = Date.now();
-        const retryDelay = Math.max(resetTime - now, 0); // Ensure non-negative delay
-        countdown(retryDelay, 'Rate limit exceeded. Waiting for');
-        stopProcessingEvents = true;
-        setTimeout(fetchEvents, retryDelay);
-    } else {
-        const exitDelay = GITHUB_FEATURE_FLAG_POST_COMMENTS ? GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY : 0;
-        console.error('Unhandled error:', error);
-        setTimeout(() => {
-            process.exit();
-        }, exitDelay)
-    }
+if (process.env._NODE_ENV != "test") {
+    main();
 }
 
 process.on('SIGINT', function () {
@@ -430,7 +435,30 @@ process.on('SIGINT', function () {
     }, exitDelay)
 });
 
+export async function _fetch(url, options) {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+        throw response;
+    }
+    return response;
+}
+
 function countdown(delay, message) {
+    function secondsToString(seconds) {
+        var numyears = Math.floor(seconds / 31536000);
+        var numdays = Math.floor((seconds % 31536000) / 86400);
+        var numhours = Math.floor(((seconds % 31536000) % 86400) / 3600);
+        var numminutes = Math.floor((((seconds % 31536000) % 86400) % 3600) / 60);
+        var numseconds = (((seconds % 31536000) % 86400) % 3600) % 60;
+        var result = [];
+        if (numyears > 0) result.push(numyears + " years");
+        if (numdays > 0) result.push(numdays + " days");
+        if (numhours > 0) result.push(numhours + " hours");
+        if (numminutes > 0) result.push(numminutes + " minutes");
+        if (numseconds > 0) result.push(numseconds + " seconds");
+        return result.join(" ");
+    }
+
     let remainingTime = delay;
     const interval = setInterval(() => {
         remainingTime -= 1000;
@@ -438,19 +466,4 @@ function countdown(delay, message) {
         if (remainingTime < 0)
             clearInterval(interval);
     }, 1000);
-}
-
-function secondsToString(seconds) {
-    var numyears = Math.floor(seconds / 31536000);
-    var numdays = Math.floor((seconds % 31536000) / 86400);
-    var numhours = Math.floor(((seconds % 31536000) % 86400) / 3600);
-    var numminutes = Math.floor((((seconds % 31536000) % 86400) % 3600) / 60);
-    var numseconds = (((seconds % 31536000) % 86400) % 3600) % 60;
-    var result = [];
-    if (numyears > 0) result.push(numyears + " years");
-    if (numdays > 0) result.push(numdays + " days");
-    if (numhours > 0) result.push(numhours + " hours");
-    if (numminutes > 0) result.push(numminutes + " minutes");
-    if (numseconds > 0) result.push(numseconds + " seconds");
-    return result.join(" ");
 }

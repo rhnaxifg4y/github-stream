@@ -5,12 +5,11 @@
   "type": "module",
   "dependencies": {
     "@octokit/plugin-throttling": "^9.3.0",
-    "axios": "^1.7.2",
-    "node-geocoder": "^4.3.0",
     "octokit": "^4.0.2"
   },
   "scripts": {
-    "start": "node --env-file .env index.js"
+    "start": "node --env-file .env index.js",
+    "test": "node --env-file .env test.js"
   },
   "author": "",
   "license": "ISC",
