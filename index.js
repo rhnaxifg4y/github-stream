@@ -251,7 +251,7 @@ async function handlePushEvent(event, location) {
     const { url } = event.payload.commits[0];
     if (stopProcessingEvents) return;
 
-    const { files } = await (await fetch(url, {
+    const { files } = await (await _fetch(url, {
         headers: { "Authorization": "Bearer " + githubKey }
     })).json();
 
@@ -325,7 +325,7 @@ async function handlePushEvent(event, location) {
     if (GITHUB_FEATURE_FLAG_POST_COMMENTS) {
         if (stopProcessingEvents) return;
         // https://docs.github.com/fr/rest/commits/comments?apiVersion=2022-11-28#create-a-commit-comment
-        const { id: commentId } = await (await fetch(`https://api.github.com/repos/${event.repo.name}/commits/${event.payload.commits[0].sha}/comments`, {
+        const { id: commentId } = await (await _fetch(`https://api.github.com/repos/${event.repo.name}/commits/${event.payload.commits[0].sha}/comments`, {
             method: "POST",
             headers: {
                 "Accept": "application/vnd.github+json",
@@ -340,7 +340,7 @@ async function handlePushEvent(event, location) {
             setTimeout(async () => {
                 try {
                     // https://docs.github.com/fr/rest/commits/comments?apiVersion=2022-11-28#delete-a-commit-comment
-                    await fetch(`https://api.github.com/repos/${event.repo.name}/comments/${commentId}`, {
+                    await _fetch(`https://api.github.com/repos/${event.repo.name}/comments/${commentId}`, {
                         method: "DELETE",
                         headers: {
                             "Accept": "application/vnd.github+json",
@@ -364,8 +364,8 @@ async function handlePushEvent(event, location) {
 async function getUserLocation() {
     const ipifyKey = getRandom(process.env.IPIFY_KEYS.split(',').filter(Boolean));
     if (ipifyKey) {
-        const ip = await (await fetch('https://api.ipify.org')).text();
-        const { location } = await (await fetch('https://geo.ipify.org/api/v2/country?apiKey=' + ipifyKey + '&ipAddress=' + ip)).json();
+        const ip = await (await _fetch('https://api.ipify.org')).text();
+        const { location } = await (await _fetch('https://geo.ipify.org/api/v2/country?apiKey=' + ipifyKey + '&ipAddress=' + ip)).json();
         const githubGeocoder = NodeGeocoder({ provider: 'locationiq', apiKey: locationiqKey });
         if (stopProcessingEvents) return;
         const res = await githubGeocoder.geocode(location.region + '(' + location.country + ')');
@@ -453,4 +453,12 @@ function secondsToString(seconds) {
     if (numminutes > 0) result.push(numminutes + " minutes");
     if (numseconds > 0) result.push(numseconds + " seconds");
     return result.join(" ");
+}
+
+async function _fetch(url, options) {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+        throw response;
+    }
+    return response;
 }
