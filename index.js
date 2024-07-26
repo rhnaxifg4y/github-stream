@@ -379,7 +379,7 @@ async function handlePushEvent(event, location) {
 }
 
 async function handleError(e) {
-    const { message, error } = await error.json();
+    const { message, error } = await e.json();
     if (e.status === 304) {
         console.log('No new events');
     } else if (e.status === 404 || e.status === 401 || e.status === 429) {
