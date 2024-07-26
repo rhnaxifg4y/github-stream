@@ -45,6 +45,22 @@ let pollingInterval = 0;
 let stopProcessingEvents = false;
 let hasPostedComments = false;
 
+async function getUserLocation() {
+    const ipifyKey = getRandom(process.env.IPIFY_KEYS.split(',').filter(Boolean));
+    if (ipifyKey) {
+        const ip = await (await _fetch('https://api.ipify.org')).text();
+        const { location } = await (await _fetch('https://geo.ipify.org/api/v2/country?apiKey=' + ipifyKey + '&ipAddress=' + ip)).json();
+        if (stopProcessingEvents) return;
+        const res = await (await _fetch(`https://us1.locationiq.com/v1/search?key=${locationiqKey}&q=${encodeURI(location.region + '(' + location.country + ')')}&format=json&`)).json();
+        if (res && res.length) {
+            userLocation = res[0];
+            console.log(`Striking from ${location.region + ' (' + location.country + ')'} ${`(${userLocation.lat}, ${userLocation.lon})`}`);
+        } else {
+            throw new Error("LMAO");
+        }
+    }
+}
+
 async function fetchEvents() {
     try {
         // https://docs.github.com/en/rest/activity/events?apiVersion=2022-11-28#list-public-events
@@ -361,34 +377,6 @@ async function handlePushEvent(event, location) {
     }
 }
 
-async function getUserLocation() {
-    const ipifyKey = getRandom(process.env.IPIFY_KEYS.split(',').filter(Boolean));
-    if (ipifyKey) {
-        const ip = await (await _fetch('https://api.ipify.org')).text();
-        const { location } = await (await _fetch('https://geo.ipify.org/api/v2/country?apiKey=' + ipifyKey + '&ipAddress=' + ip)).json();
-        if (stopProcessingEvents) return;
-        const res = await (await _fetch(`https://us1.locationiq.com/v1/search?key=${locationiqKey}&q=${encodeURI(location.region + '(' + location.country + ')')}&format=json&`)).json();
-        if (res && res.length) {
-            userLocation = res[0];
-            console.log(`Striking from ${location.region + ' (' + location.country + ')'} ${`(${userLocation.lat}, ${userLocation.lon})`}`);
-        } else {
-            throw new Error("LMAO");
-        }
-    }
-}
-
-(async () => {
-    try {
-        if (FEATURE_FLAG_USE_OWN_LOCATION)
-            await getUserLocation();
-    } catch (error) {
-        FEATURE_FLAG_USE_OWN_LOCATION = false;
-    }
-    if (!FEATURE_FLAG_USE_OWN_LOCATION)
-        console.log("Couldn't use own location... striking from Casablanca <3");
-    fetchEvents();
-})()
-
 async function handleError(e) {
     const { message, error } = await error.json();
     if (e.status === 304) {
@@ -421,6 +409,22 @@ async function handleError(e) {
     }
 }
 
+const main = async function () {
+    try {
+        if (FEATURE_FLAG_USE_OWN_LOCATION)
+            await getUserLocation();
+    } catch (error) {
+        FEATURE_FLAG_USE_OWN_LOCATION = false;
+    }
+    if (!FEATURE_FLAG_USE_OWN_LOCATION)
+        console.log("Couldn't use own location... striking from Casablanca <3");
+    fetchEvents();
+};
+
+if (process.env._NODE_ENV != "test") {
+    main();
+}
+
 process.on('SIGINT', function () {
     const exitDelay = hasPostedComments ? GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY : 0;
     countdown(exitDelay, 'Caught interrupt signal. Exiting in');
@@ -430,7 +434,30 @@ process.on('SIGINT', function () {
     }, exitDelay)
 });
 
+export async function _fetch(url, options) {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+        throw response;
+    }
+    return response;
+}
+
 function countdown(delay, message) {
+    function secondsToString(seconds) {
+        var numyears = Math.floor(seconds / 31536000);
+        var numdays = Math.floor((seconds % 31536000) / 86400);
+        var numhours = Math.floor(((seconds % 31536000) % 86400) / 3600);
+        var numminutes = Math.floor((((seconds % 31536000) % 86400) % 3600) / 60);
+        var numseconds = (((seconds % 31536000) % 86400) % 3600) % 60;
+        var result = [];
+        if (numyears > 0) result.push(numyears + " years");
+        if (numdays > 0) result.push(numdays + " days");
+        if (numhours > 0) result.push(numhours + " hours");
+        if (numminutes > 0) result.push(numminutes + " minutes");
+        if (numseconds > 0) result.push(numseconds + " seconds");
+        return result.join(" ");
+    }
+
     let remainingTime = delay;
     const interval = setInterval(() => {
         remainingTime -= 1000;
@@ -438,27 +465,4 @@ function countdown(delay, message) {
         if (remainingTime < 0)
             clearInterval(interval);
     }, 1000);
-}
-
-function secondsToString(seconds) {
-    var numyears = Math.floor(seconds / 31536000);
-    var numdays = Math.floor((seconds % 31536000) / 86400);
-    var numhours = Math.floor(((seconds % 31536000) % 86400) / 3600);
-    var numminutes = Math.floor((((seconds % 31536000) % 86400) % 3600) / 60);
-    var numseconds = (((seconds % 31536000) % 86400) % 3600) % 60;
-    var result = [];
-    if (numyears > 0) result.push(numyears + " years");
-    if (numdays > 0) result.push(numdays + " days");
-    if (numhours > 0) result.push(numhours + " hours");
-    if (numminutes > 0) result.push(numminutes + " minutes");
-    if (numseconds > 0) result.push(numseconds + " seconds");
-    return result.join(" ");
-}
-
-async function _fetch(url, options) {
-    const response = await fetch(url, options);
-    if (!response.ok) {
-        throw response;
-    }
-    return response;
 }

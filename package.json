@@ -8,7 +8,8 @@
     "octokit": "^4.0.2"
   },
   "scripts": {
-    "start": "node --env-file .env index.js"
+    "start": "node --env-file .env index.js",
+    "test": "node --env-file .env test.js"
   },
   "author": "",
   "license": "ISC",
