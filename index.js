@@ -389,23 +389,24 @@ async function getUserLocation() {
     fetchEvents();
 })()
 
-function handleError(error) {
-    if (error.status === 304) {
+async function handleError(e) {
+    const { message, error } = await error.json();
+    if (e.status === 304) {
         console.log('No new events');
-    } else if (error.response && (error.response.status === 404 || error.response.status === 401 || error.response.status === 429)) {
-        console.log(JSON.stringify(error.response.data))
-        if (error.response.data.message === 'Not Found' || error.response.data.message === "Bad credentials") { // github
-            if (error.response.data.message === "Bad credentials") {
+    } else if (e.status === 404 || e.status === 401 || e.status === 429) {
+        console.log(JSON.stringify(e))
+        if (message === 'Not Found' || message === "Bad credentials") { // github
+            if (message === "Bad credentials") {
                 process.exit();
             }
         }
-        else if (error.response.data.error && error.response.data.error.message.indexOf('Incorrect API key provided:') !== -1 || error.response.data.error.message.indexOf('You exceeded your current quota') !== -1) { // openai key issues
+        else if (error && error.message.indexOf('Incorrect API key provided:') !== -1 || error.message.indexOf('You exceeded your current quota') !== -1) { // openai key issues
             openaiKeys.splice(openaiKeys.indexOf(openaiKey), 1)
             openaiKey = getRandom(openaiKeys);
         }
-    } else if (error.response && error.response.headers['x-ratelimit-remaining'] === '0') {
-        console.log(JSON.stringify(error))
-        const resetTime = parseInt(error.response.headers['x-ratelimit-reset']) * 1000;
+    } else if (e.headers && e.headers['x-ratelimit-remaining'] === '0') {
+        console.log(JSON.stringify(e))
+        const resetTime = parseInt(e.headers['x-ratelimit-reset']) * 1000;
         const now = Date.now();
         const retryDelay = Math.max(resetTime - now, 0); // Ensure non-negative delay
         countdown(retryDelay, 'Rate limit exceeded. Waiting for');
@@ -413,7 +414,7 @@ function handleError(error) {
         setTimeout(fetchEvents, retryDelay);
     } else {
         const exitDelay = GITHUB_FEATURE_FLAG_POST_COMMENTS ? GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY : 0;
-        console.error('Unhandled error:', error);
+        console.error('Unhandled error:', e);
         setTimeout(() => {
             process.exit();
         }, exitDelay)
