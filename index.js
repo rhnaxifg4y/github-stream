@@ -2,7 +2,6 @@ import fs from "fs";
 import path from "path";
 import { styleText } from "util";
 
-import axios from 'axios';
 import { Octokit } from "octokit";
 import { throttling } from "@octokit/plugin-throttling";
 
@@ -294,24 +293,26 @@ async function handlePushEvent(event, location) {
     chatbots.push({ endpoint: 'http://127.0.0.1:11434/api/chat', model: 'llama3' });
     const chatbot = getRandom(chatbots);
     
-    const { data } = await axios.post(chatbot.endpoint, {
-        model: chatbot.model,
-        messages: [
-            {
-                role: "system",
-                content: PROMPT_WRAPPER(
-                    PROMPTS[Math.floor(Math.random() * PROMPTS.length)],
-                    files
-                ),
-            }
-        ],
-        stream: false
-    }, {
+    const data = await (await _fetch(chatbot.endpoint, {
+        method: "POST",
         headers: {
             "Content-Type": "application/json",
             'Authorization': `Bearer ${openaiKey}`
-        }
-    })
+        },
+        body: JSON.stringify({
+            model: chatbot.model,
+            messages: [
+                {
+                    role: "system",
+                    content: PROMPT_WRAPPER(
+                        PROMPTS[Math.floor(Math.random() * PROMPTS.length)],
+                        files
+                    ),
+                }
+            ],
+            stream: false
+        })
+    })).json();
     if (stopProcessingEvents) return;
 
     generatedComment = data.choices ? data.choices[0].message.content : data.message.content;
