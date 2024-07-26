@@ -294,6 +294,7 @@ async function handlePushEvent(event, location) {
     const chatbot = getRandom(chatbots);
     
     const data = await (await _fetch(chatbot.endpoint, {
+        signal: AbortSignal.timeout(10 * 60 * 1000), // NOTE: might still timeout after 5mn only
         method: "POST",
         headers: {
             "Content-Type": "application/json",
