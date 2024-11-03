@@ -297,7 +297,7 @@ async function handlePushEvent(event, location) {
     You can't be too rude because your boss is watching, but be as unhelpful as possible and
     as rude as you can get away with.
 
-    Here are the diffs for the commit:
+    Here are the diffs for the commit:‎ ‎ 
     ${files}
 
     Answer using a sentance in the local language for the following location: "${location}"
