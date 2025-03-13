@@ -8,7 +8,8 @@ Shamelessly plug your resume using `RESUME_URL`.
 
 # Prerequistes
 
-You need a [GitHub](https://github.com/settings/tokens) _(public_repo)_ and a [LocationIQ](https://my.locationiq.com/dashboard/#accesstoken) API key.  
+You will need Node v20.6.0.  
+You will also need a [GitHub](https://github.com/settings/tokens) _(public_repo)_ and a [LocationIQ](https://my.locationiq.com/dashboard/#accesstoken) API key.  
 Optionally, you can use an [OpenAI](https://platform.openai.com/api-keys) API key instead of [Ollama](https://github.com/ollama/ollama).
 
 # Install
