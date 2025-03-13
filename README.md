@@ -11,7 +11,7 @@ Shamelessly plug your resume using `RESUME_URL`.
 You need a [GitHub](https://github.com/settings/tokens) _(public_repo)_ and a [LocationIQ](https://my.locationiq.com/dashboard/#accesstoken) API key.  
 Optionally, you can use an [OpenAI](https://platform.openai.com/api-keys) API key instead of [Ollama](https://github.com/ollama/ollama).
 
-# Usage
+# Install
 
 ```
 $ git clone && cd ./github-stream
@@ -19,15 +19,20 @@ $ cd ./globe && git checkout main && git pull && cd -
 $ npm install
 $ cp .env.example .env
 $ curl -fsSL https://ollama.com/install.sh | sh
-$ ollama serve &
 $ ollama pull llama3
+$ curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
+```
+
+# Usage
+
+```
+$ ollama serve &
 $ npm start
 ```
 
 Run the GitHub Actions workflow locally using [act-cli](https://github.com/nektos/act):
 
 ```
-$ curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
 $ ./bin/act -P ubuntu-latest=catthehacker/ubuntu:act-latest -b workflow_dispatch
 ```
 
