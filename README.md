@@ -37,6 +37,8 @@ Or run the GitHub Actions workflow locally using [act-cli](https://github.com/ne
 $ ./bin/act -P ubuntu-latest=catthehacker/ubuntu:act-latest -b workflow_dispatch
 ```
 
+## Add-on
+
 Visualize data on the globe:
 
 ```
