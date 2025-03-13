@@ -15,7 +15,7 @@ Optionally, you can use an [OpenAI](https://platform.openai.com/api-keys) API ke
 # Install
 
 ```
-$ git clone && cd ./github-stream
+$ git clone git@github.com:rhnaxifg4y/github-stream.git --recursive && cd ./github-stream
 $ cd ./globe && git checkout main && git pull && cd -
 $ npm install
 $ cp .env.example .env
