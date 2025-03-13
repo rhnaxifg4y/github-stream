@@ -28,7 +28,7 @@ Run the GitHub Actions workflow locally using [act-cli](https://github.com/nekto
 
 ```
 $ curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
-$ act -P ubuntu-latest=catthehacker/ubuntu:act-latest -b workflow_dispatch
+$ ./bin/act -P ubuntu-latest=catthehacker/ubuntu:act-latest -b workflow_dispatch
 ```
 
 Visualize data on the globe:
