@@ -379,8 +379,19 @@ async function handlePushEvent(event, location) {
 }
 
 async function handleError(e) {
-    const { message, error } = await e.json();
-    if (e.status === 304) {
+    let message, error;
+    if (typeof e.json === 'function') {
+        const jsonResponse = await e.json();
+        message = jsonResponse.message;
+        error = jsonResponse.error;
+    } else {
+        message = e.message || 'Unknown error';
+        error = e.error || {};
+    }
+
+    console.log(e);
+
+    if (error.status === 304) {
         console.log('No new events');
     } else if (e.status === 404 || e.status === 401 || e.status === 429) {
         console.log(JSON.stringify(e))
@@ -389,7 +400,7 @@ async function handleError(e) {
                 process.exit();
             }
         }
-        else if (error && error.message.indexOf('Incorrect API key provided:') !== -1 || error.message.indexOf('You exceeded your current quota') !== -1) { // openai key issues
+        else if (error && error.message && (error.message.indexOf('Incorrect API key provided:') !== -1 || error.message.indexOf('You exceeded your current quota') !== -1)) { // openai key issues
             openaiKeys.splice(openaiKeys.indexOf(openaiKey), 1)
             openaiKey = getRandom(openaiKeys);
         }
