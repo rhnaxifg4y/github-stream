@@ -389,8 +389,6 @@ async function handleError(e) {
         error = e.error || {};
     }
 
-    console.log(e);
-
     if (error.status === 304) {
         console.log('No new events');
     } else if (e.status === 404 || e.status === 401 || e.status === 429) {
