@@ -5,6 +5,8 @@ import { styleText } from "util";
 import { Octokit } from "octokit";
 import { throttling } from "@octokit/plugin-throttling";
 
+import { Agent } from 'undici';
+
 let FEATURE_FLAG_USE_OWN_LOCATION = false;
 const GITHUB_EVENTS_PER_PAGE = 100;
 const GROSSO_MERDO = 5000;
@@ -198,7 +200,8 @@ async function fetchEvents() {
                                     break;
                             }
 
-                            console.log(output);
+                            if (event.type === 'PushEvent')
+                                console.log(output);
                             if (generatedComment)
                                 console.log('💡 ' + generatedComment)
 
@@ -298,19 +301,20 @@ async function handlePushEvent(event, location) {
     as rude as you can get away with.
 
     Here are the diffs for the commit:‎ ‎ 
-    ${files}
+    ${JSON.stringify(files)}
 
-    Answer using a sentance in the local language for the following location: "${location}"
+    Answer using a sentance in the local language for the following location: "${location}".
+
+    Make a reference to the code pushed in the comment when possible/appropriate.
     `;
     if (stopProcessingEvents) return;
 
     const chatbots = []
     if (openaiKeys.length) chatbots.push({ endpoint: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o' }); // https://platform.openai.com/docs/guides/text-generation/chat-completions-api
-    chatbots.push({ endpoint: 'http://127.0.0.1:11434/api/chat', model: 'llama3' });
+    chatbots.push({ endpoint: 'http://127.0.0.1:11434/api/chat', model: 'llama3', keep_alive: -1 });
     const chatbot = getRandom(chatbots);
     
     const data = await (await _fetch(chatbot.endpoint, {
-        signal: AbortSignal.timeout(10 * 60 * 1000), // NOTE: might still timeout after 5mn only
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -445,7 +449,7 @@ process.on('SIGINT', function () {
 });
 
 export async function _fetch(url, options) {
-    const response = await fetch(url, options);
+    const response = await fetch(url, { ...options, dispatcher: new Agent({ connectTimeout: 0, bodyTimeout: 0, headersTimeout: 0 }) });
     if (!response.ok) {
         throw response;
     }
