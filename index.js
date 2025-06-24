@@ -385,6 +385,12 @@ async function handlePushEvent(event, location) {
 async function handleError(e) {
     let message, error, status;
 
+    // If the error is a fetch Response, check status directly
+    if (e && typeof e.status === 'number' && e.status === 404) {
+        console.warn(`GitHub API 404: Resource not found at this endpoint. Skipping this item.`);
+        return;
+    }
+
     if (typeof e.json === 'function') {
         try {
             const jsonResponse = await e.json();
