@@ -383,43 +383,52 @@ async function handlePushEvent(event, location) {
 }
 
 async function handleError(e) {
-    let message, error;
+    let message, error, status;
+
     if (typeof e.json === 'function') {
-        const jsonResponse = await e.json();
-        message = jsonResponse.message;
-        error = jsonResponse.error;
+        try {
+            const jsonResponse = await e.json();
+            message = jsonResponse.message;
+            error = jsonResponse.error || {};
+            status = jsonResponse.status || e.status;
+        } catch (parseErr) {
+            message = e.statusText || e.message || 'Unknown error';
+            error = {};
+            status = e.status;
+        }
     } else {
         message = e.message || 'Unknown error';
         error = e.error || {};
+        status = e.status;
     }
 
-    if (error.status === 304) {
+    if (typeof error !== 'object' || error === null) error = {};
+
+    if (error && error.status === 304) {
         console.log('No new events');
-    } else if (e.status === 404 || e.status === 401 || e.status === 429) {
-        console.log(JSON.stringify(e))
-        if (message === 'Not Found' || message === "Bad credentials") { // github
-            if (message === "Bad credentials") {
-                process.exit();
-            }
-        }
-        else if (error && error.message && (error.message.indexOf('Incorrect API key provided:') !== -1 || error.message.indexOf('You exceeded your current quota') !== -1)) { // openai key issues
-            openaiKeys.splice(openaiKeys.indexOf(openaiKey), 1)
+    } else if (status === 404 || status === 401 || status === 429) {
+        console.log(JSON.stringify(e));
+        if (message === 'Not Found' || message === "Bad credentials") {
+            if (message === "Bad credentials") process.exit();
+        } else if (error.message && (error.message.includes('Incorrect API key provided:') || error.message.includes('You exceeded your current quota'))) {
+            openaiKeys.splice(openaiKeys.indexOf(openaiKey), 1);
             openaiKey = getRandom(openaiKeys);
         }
     } else if (e.headers && e.headers['x-ratelimit-remaining'] === '0') {
-        console.log(JSON.stringify(e))
+        console.log(JSON.stringify(e));
         const resetTime = parseInt(e.headers['x-ratelimit-reset']) * 1000;
         const now = Date.now();
-        const retryDelay = Math.max(resetTime - now, 0); // Ensure non-negative delay
+        const retryDelay = Math.max(resetTime - now, 0);
         countdown(retryDelay, 'Rate limit exceeded. Waiting for');
         stopProcessingEvents = true;
         setTimeout(fetchEvents, retryDelay);
     } else {
         const exitDelay = GITHUB_FEATURE_FLAG_POST_COMMENTS ? GITHUB_DELETE_COMMENTS_DELAY_WITH_LATENCY : 0;
         console.error('Unhandled error:', e);
+        if (e.stack) console.error(e.stack);
         setTimeout(() => {
             process.exit();
-        }, exitDelay)
+        }, exitDelay);
     }
 }
 
