@@ -36,7 +36,7 @@ const octokit = new Octokit({
     auth: githubKey,
 })
 
-let userLocation = { lat: 33.58535236663171, lon: -7.631805876712778 };
+let userLocation = { lat: 13.714794092120604, lon: 100.5942177061338 };
 
 let etag = null;
 let lastModified = null;
@@ -427,7 +427,7 @@ const main = async function () {
         FEATURE_FLAG_USE_OWN_LOCATION = false;
     }
     if (!FEATURE_FLAG_USE_OWN_LOCATION)
-        console.log("Couldn't use own location... striking from Casablanca <3");
+        console.log("Couldn't use own location... striking from Bangkok <3");
     fetchEvents();
 };
 
