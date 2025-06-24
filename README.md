@@ -1,4 +1,8 @@
-![Capture](https://github.com/user-attachments/assets/9ad82945-bc99-4f7b-801e-cbe1074c8160)
+
+
+
+https://github.com/user-attachments/assets/d7ad7050-e758-4a47-876c-36d81d4237d3
+
 
 > Just published my new project for everybody looking for a "remote" job, lol. It uses GitHub Events API and [@bryan_houlton](https://github.com/bryanhoulton/senior-dev)'s prompts.
 
