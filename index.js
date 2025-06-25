@@ -385,10 +385,14 @@ async function handlePushEvent(event, location) {
 async function handleError(e) {
     let message, error, status;
 
-    // If the error is a fetch Response, check status directly for 404 and 422
+    // If the error is a fetch Response, check status directly for 404, 409, and 422
     if (e && typeof e.status === 'number') {
         if (e.status === 404) {
             console.warn(`GitHub API 404: Resource not found at this endpoint. Skipping this item.`);
+            return;
+        }
+        if (e.status === 409) {
+            console.warn(`GitHub API 409: Conflict. The request could not be completed due to a conflict (e.g., branch or merge conflict). Skipping this item.`);
             return;
         }
         if (e.status === 422) {
