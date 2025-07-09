@@ -2,8 +2,8 @@ name: Stream
 
 on:
   workflow_dispatch:
-#  schedule:
-#    - cron: 0 */6 * * *
+  schedule:
+    - cron: 0 */6 * * *
 
 env:
   _GITHUB_KEYS: ${{secrets._GITHUB_KEYS}}
