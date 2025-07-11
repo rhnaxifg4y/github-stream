@@ -385,7 +385,7 @@ async function handlePushEvent(event, location) {
 async function handleError(e) {
     let message, error, status;
 
-    // If the error is a fetch Response, check status directly for 404, 409, and 422
+    // If the error is a fetch Response, check status directly for 404, 409, 422, and 502
     if (e && typeof e.status === 'number') {
         if (e.status === 404) {
             console.warn(`GitHub API 404: Resource not found at this endpoint. Skipping this item.`);
@@ -397,6 +397,10 @@ async function handleError(e) {
         }
         if (e.status === 422) {
             console.warn(`GitHub API 422: Unprocessable Entity. The request was well-formed but could not be processed (e.g., invalid commit, validation error). Skipping this item.`);
+            return;
+        }
+        if (e.status === 502) {
+            console.warn(`GitHub API 502: Bad Gateway. The server received an invalid response from the upstream server. Skipping this item.`);
             return;
         }
     }
