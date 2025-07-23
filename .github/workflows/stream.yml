@@ -42,7 +42,8 @@ jobs:
       - name: Run index.js
         run: |
           ollama serve &
-          node index.js || exit 0
+          # Run for a maximum of 5h55s (18055 seconds)
+          timeout 18055 node index.js || exit 0
       - name: Commit data.json
         if: always()
         run: |
