@@ -4,9 +4,9 @@
 https://github.com/user-attachments/assets/d7ad7050-e758-4a47-876c-36d81d4237d3
 
 
-> Just published my new project for everybody looking for a "remote" job, lol. It uses GitHub Events API and [@bryan_houlton](https://github.com/bryanhoulton/senior-dev)'s prompts.
+> *Just published my new project for everybody looking for a "remote" job, lol. It uses GitHub Events API and [@bryan_houlton](https://github.com/bryanhoulton/senior-dev)'s prompts.*
 
-Shamelessly plug your resume using `RESUME_URL`.
+*Shamelessly plug your resume using `RESUME_URL`.*
 
 [![As seen on Hacker News](https://img.shields.io/hackernews/user-karma/_u0u9)](https://news.ycombinator.com/item?id=41032514)
 
