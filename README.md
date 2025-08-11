@@ -24,7 +24,7 @@ $ cd ./globe && git checkout main && git pull && cd -
 $ npm install
 $ cp .env.example .env
 $ curl -fsSL https://ollama.com/install.sh | sh
-$ ollama pull llama3.1
+$ ollama pull llama3
 $ curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
 ```
 
