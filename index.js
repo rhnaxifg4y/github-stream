@@ -180,7 +180,7 @@ async function fetchEvents() {
                                 case 'PushEvent':
                                     // Assuming the first commit in the payload
                                     if (event.payload.commits.length > 0) {
-                                        output += `${styleText('blue', 'Commit URL:')} ${styleText(['underline', 'blue'], event.payload.commits[0].url)} ${event.payload.commits[0].message.split('\n').join(' \ ')}`;
+                                        output += `${styleText('blue', 'Commit URL:')} ${styleText(['underline', 'blue'], event.payload.commits[0].url)} ${event.payload.commits[0].message?.split('\n').join(' \ ')}`;
                                         if (lat && long && FEATURE_FLAG_GENERATE_COMMENTS) {
                                             handlingResult = await handlePushEvent(event, user.location)
                                             generatedComment = handlingResult.comment
