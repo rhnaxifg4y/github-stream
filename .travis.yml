@@ -1,0 +1,10 @@
+language: node_js
+node_js:
+  - "18"
+install:
+  - npm install
+script:
+  - npm start
+cron:
+  - branch: main
+    cron: "0 0 1-31/2 * *"
