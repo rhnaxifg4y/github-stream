@@ -429,7 +429,7 @@ async function handleError(e) {
     } else if (status === 404 || status === 401 || status === 429) {
         console.log(JSON.stringify(e));
         if (message === 'Not Found' || message === "Bad credentials") {
-            if (message === "Bad credentials") process.exit();
+            if (message === "Bad credentials") process.exit(1);
         } else if (error.message && (error.message.includes('Incorrect API key provided:') || error.message.includes('You exceeded your current quota'))) {
             openaiKeys.splice(openaiKeys.indexOf(openaiKey), 1);
             openaiKey = getRandom(openaiKeys);
@@ -447,7 +447,7 @@ async function handleError(e) {
         console.error('Unhandled error:', e);
         if (e.stack) console.error(e.stack);
         setTimeout(() => {
-            process.exit();
+            process.exit(1);
         }, exitDelay);
     }
 }
