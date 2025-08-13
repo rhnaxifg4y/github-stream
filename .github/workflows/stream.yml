@@ -42,7 +42,7 @@ jobs:
       - name: Run index.js
         run: |
           # Run for a maximum of 5h55s (18055 seconds)
-          timeout 18055 node index.js
+          timeout 18055 node index.js || if [ $? -eq 124 ]; then exit 0; else exit $?; fi
       - name: Commit data.json
         if: always()
         run: |
