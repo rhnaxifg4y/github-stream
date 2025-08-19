@@ -15,3 +15,11 @@ const it = (description, fn) => {
 it('should retrieve the _fetch function', () => {
     assert.equal(typeof _fetch, typeof (() => {}));
 });
+
+import { getRandom } from './src/utils.js';
+
+it('should get a random item from an array', () => {
+    const arr = [1, 2, 3, 4, 5];
+    const randomItem = getRandom(arr);
+    assert.ok(arr.includes(randomItem));
+});
